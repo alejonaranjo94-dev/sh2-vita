@@ -71,6 +71,7 @@ void svcSleepThread(s64 ns)
 
 u64 osGetTime(void) { return sceKernelGetProcessTimeWide() / 1000ULL; }
 void osSetSpeedupEnable(bool enable) { (void)enable; }
+float osGet3DSliderState(void) { return 0.0f; }
 
 // ---- svc ----------------------------------------------------------------------------------------
 void svcBreak(UserBreakType reason)
@@ -79,7 +80,7 @@ void svcBreak(UserBreakType reason)
 	for (;;) {}
 }
 
-s32 svcGetProcessorID(void) { return sceKernelGetProcessorId(); }
+s32 svcGetProcessorID(void) { return 0; }
 
 // 3DS thread priorities run 0x18 (highest) to 0x3F; the game asks for its own and adds or subtracts
 // one or two. The Vita's user range is centred on SCE_KERNEL_DEFAULT_PRIORITY_USER, also with
@@ -138,6 +139,8 @@ void linearFree(void* mem) { free(mem); }
 u32 linearSpaceFree(void) { return 64 * 1024 * 1024; }
 void* vramAlloc(size_t size) { return memalign(0x80, size); }
 void vramFree(void* mem) { free(mem); }
+u32 vramSpaceFree(void) { return 32 * 1024 * 1024; }
+Result DSP_FlushDataCache(const void* address, u32 size) { (void)address; (void)size; return 0; }
 Result GSPGPU_FlushDataCache(const void* adr, u32 size) { (void)adr; (void)size; return 0; }
 Result GSPGPU_InvalidateDataCache(const void* adr, u32 size) { (void)adr; (void)size; return 0; }
 
@@ -172,7 +175,7 @@ Thread threadCreate(ThreadFunc entry, void* arg, size_t stack_size, int prio, in
 	t->arg = arg;
 	t->detached = detached;
 
-	int vprio = SCE_KERNEL_DEFAULT_PRIORITY_USER + (prio - CTR_MAIN_PRIO);
+	int vprio = 0x10000100 + (prio - CTR_MAIN_PRIO)   /* the Vita default user priority */;
 	// Core 0 runs the game and its GPU work; the 3DS's core 1 / core 2 requests land on the Vita's
 	// cores 1 and 2. -1 and -2 ("any" / "default") let the kernel choose.
 	int affinity = 0;
@@ -268,6 +271,7 @@ int LightEvent_WaitTimeout(LightEvent* ev, s64 timeout_ns)
 volatile bool g_vita_quit;
 
 bool aptMainLoop(void) { return !g_vita_quit; }
+bool aptShouldClose(void) { return g_vita_quit; }
 Result APT_SetAppCpuTimeLimit(u32 percent) { (void)percent; return 0; }
 
 static bool s_apputil;

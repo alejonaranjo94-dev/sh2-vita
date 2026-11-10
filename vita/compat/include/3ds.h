@@ -30,6 +30,13 @@ typedef volatile u8 vu8;
 typedef s32 Result;
 typedef u32 Handle;
 
+#define U64_MAX UINT64_MAX
+#define U32_MAX UINT32_MAX
+
+// memory barrier (libctru's synchronization.h)
+static inline void __dmb(void) { __sync_synchronize(); }
+static inline void __dsb(void) { __sync_synchronize(); }
+
 #define BIT(n) (1U << (n))
 #define ALIGN(m) __attribute__((aligned(m)))
 #define PACKED __attribute__((packed))
@@ -54,6 +61,7 @@ u64 svcGetSystemTick(void);
 void svcSleepThread(s64 ns);
 u64 osGetTime(void);                 // milliseconds
 void osSetSpeedupEnable(bool enable);
+float osGet3DSliderState(void);   // the 3D slider: always 0 on the Vita
 
 // ---- svc odds and ends ----------------------------------------------------------------------
 typedef enum { USERBREAK_PANIC = 0, USERBREAK_ASSERT = 1, USERBREAK_USER = 2 } UserBreakType;
@@ -88,6 +96,8 @@ Result GSPGPU_FlushDataCache(const void* adr, u32 size);
 Result GSPGPU_InvalidateDataCache(const void* adr, u32 size);
 void* vramAlloc(size_t size);
 void vramFree(void* mem);
+u32 vramSpaceFree(void);
+Result DSP_FlushDataCache(const void* address, u32 size);
 
 // ---- threads and locks -----------------------------------------------------------------------
 typedef struct Thread_tag* Thread;
@@ -112,6 +122,7 @@ int LightEvent_WaitTimeout(LightEvent* ev, s64 timeout_ns);  // 0 signalled, 1 t
 
 // ---- applet / system -------------------------------------------------------------------------
 bool aptMainLoop(void);
+bool aptShouldClose(void);
 Result APT_SetAppCpuTimeLimit(u32 percent);
 
 typedef enum {
@@ -158,7 +169,7 @@ void gfxSwapBuffers(void);
 void gfxSet3D(bool enable);
 void gspWaitForVBlank(void);
 
-typedef struct { int unused; } PrintConsole;
+typedef struct { u16* frameBuffer; int consoleWidth, consoleHeight, cursorX, cursorY; } PrintConsole;
 PrintConsole* consoleInit(gfxScreen_t screen, PrintConsole* console);
 PrintConsole* consoleSelect(PrintConsole* console);
 void consoleClear(void);

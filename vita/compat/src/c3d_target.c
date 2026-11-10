@@ -83,7 +83,7 @@ static bool make_fbo(C3D_RenderTarget* rt, GLuint color_tex, int w, int h, C3D_D
 	if (C3D_DEPTHTYPE_OK(depthFmt)) {
 		glGenRenderbuffers(1, &rt->gl_depth);
 		glBindRenderbuffer(GL_RENDERBUFFER, rt->gl_depth);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, w, h);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rt->gl_depth);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rt->gl_depth);
 	}

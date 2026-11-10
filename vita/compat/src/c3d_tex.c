@@ -8,6 +8,7 @@
 // Textures a render target draws into (gl_rt) are GL's own and are sampled as they are.
 #include "c3d_internal.h"
 
+#include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
 
