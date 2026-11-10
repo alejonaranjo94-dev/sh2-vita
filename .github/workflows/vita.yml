@@ -1,0 +1,48 @@
+# sh2-vita: builds the Vita VPK on every push to the vita branch (or by hand from the Actions tab).
+# The VPK is kept as an artifact named "sh2vita-vpk" for 14 days.
+name: Vita build
+
+on:
+  push:
+    branches: [vita]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools and Vita libraries
+        run: |
+          if command -v apk >/dev/null; then apk add --no-cache cmake make bash git python3; fi
+          if command -v apt-get >/dev/null; then apt-get update && apt-get install -y cmake make python3; fi
+          vdpm zlib taihen mathneon vitaShaRK SceShaccCgExt vitaGL
+
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S vita -B build -DCMAKE_BUILD_TYPE=Release
+          # -k: keep going after an error, so one run lists every file that does not compile yet
+          cmake --build build -j"$(nproc)" -- -k 2>&1 | tee build.log
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: Errors summary
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error:|undefined reference" build.log | sed -E 's#^.*/(port|vita)/#\1/#' | sort | uniq -c | sort -rn | head -200 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sh2vita-vpk
+          path: build/sh2vita.vpk
+          retention-days: 14
