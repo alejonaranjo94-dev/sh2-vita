@@ -189,6 +189,8 @@ bool C3D_FrameBegin(u8 flags);
 void C3D_FrameEnd(u8 flags);
 float C3D_GetDrawingTime(void);
 float C3D_GetProcessingTime(void);
+// citro3d internal the game calls (gpusync.h) to wait until the GPU has finished
+void C3Di_RenderQueueWaitDone(void);
 void C3D_SetViewport(u32 x, u32 y, u32 w, u32 h);
 void C3D_SetScissor(int mode, u32 left, u32 top, u32 right, u32 bottom);
 enum { GPU_SCISSOR_DISABLE = 0, GPU_SCISSOR_INVERT = 1, GPU_SCISSOR_NORMAL = 3 };

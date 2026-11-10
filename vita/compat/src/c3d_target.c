@@ -41,6 +41,7 @@ float C3D_FrameRate(float fps)
 }
 
 bool C3D_FrameSync(void) { return true; }
+void C3Di_RenderQueueWaitDone(void) { glFinish(); }
 float C3D_GetDrawingTime(void) { return s_draw_ms; }
 float C3D_GetProcessingTime(void) { return s_proc_ms; }
 

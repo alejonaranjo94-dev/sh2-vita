@@ -10,7 +10,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   endif()
 endif()
 
-project(sh2vita C)
+project(sh2vita C CXX)   # CXX: vitaGL's shader preprocessor is C++ and needs its runtime
 include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 
 set(VITA_APP_NAME "Silent Hill 2")
@@ -55,8 +55,9 @@ target_link_libraries(sh2vita PRIVATE
   SceCtrl_stub SceTouch_stub SceAudio_stub SceSysmodule_stub SceCommonDialog_stub
   SceAppMgr_stub SceAppUtil_stub SceIme_stub SceRtc_stub ScePower_stub SceSysmem_stub
   SceLibKernel_stub SceKernelThreadMgr_stub SceIofilemgr_stub
-  z m c
+  stdc++ z m c
 )
+set_target_properties(sh2vita PROPERTIES LINKER_LANGUAGE CXX)
 
 # ATTRIBUTE2=12 asks the system for the extended memory mode (more RAM for the game).
 set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")

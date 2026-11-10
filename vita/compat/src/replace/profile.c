@@ -9,6 +9,10 @@
 #include "quality.h"
 #endif
 
+// The 3DS heap sizes main.c and perf.c log; on the Vita, the C heap (sys.c) and nothing separate.
+extern int _newlib_heap_size_user;
+u32 __ctru_heap_size = 200u * 1024 * 1024, __ctru_linear_heap_size = 64u * 1024 * 1024;
+
 static struct {
 	int hw, quality, layout, fps;   // CHOICE_*
 	int tex_half, tex_full;
