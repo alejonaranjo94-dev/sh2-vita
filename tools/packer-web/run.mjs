@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -30,8 +30,8 @@ globalThis.location = { href: 'file:///' };
 const FF_DIR = process.env.FFMPEG_CORE || path.join(HERE, 'node_modules/@ffmpeg/core/dist');
 const createFFmpegCore = require(path.join(FF_DIR, 'umd/ffmpeg-core.js'));
 const ffWasm = fs.readFileSync(path.join(FF_DIR, 'umd/ffmpeg-core.wasm'));
-const { loadPyodide } = await import(path.join(HERE, 'node_modules/pyodide/pyodide.mjs'));
-const { default: createTexenc } = await import(path.join(SITE, 'texenc.mjs'));
+const { loadPyodide } = await import(pathToFileURL(path.join(HERE, 'node_modules/pyodide/pyodide.mjs')).href);
+const { default: createTexenc } = await import(pathToFileURL(path.join(SITE, 'texenc.mjs')).href);
 const { createPacker, ffmpegCore } = require(path.join(SITE, 'core.js'));
 const { ZipSink } = require(path.join(SITE, 'sinks.js'));
 
