@@ -18,7 +18,7 @@ jobs:
         run: |
           if command -v apk >/dev/null; then apk add --no-cache cmake make bash git python3; fi
           if command -v apt-get >/dev/null; then apt-get update && apt-get install -y cmake make python3; fi
-          vdpm zlib taihen mathneon vitaShaRK SceShaccCgExt vitaGL
+          vdpm zlib taihen libmathneon vitaShaRK SceShaccCgExt vitaGL
 
       - name: Build
         shell: bash
