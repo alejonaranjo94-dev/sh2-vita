@@ -359,10 +359,11 @@ typedef struct {
 	u32 flags[2];
 	u64 permutation;
 	int attrCount;
-	// sh2-vita: per input register, its format and size (0 = not loaded)
-	u8 fmt[16];
-	u8 count[16];
-	u8 fixed[16];
+	// sh2-vita: the loaders in the order they were added (an attribute index is a loader index),
+	// and the registers that take a fixed value instead
+	u8 loader_reg[12], loader_fmt[12], loader_count[12];
+	int loaderCount;
+	u16 fixed_mask;
 } C3D_AttrInfo;
 
 void AttrInfo_Init(C3D_AttrInfo* info);
@@ -495,6 +496,7 @@ static inline void C3D_TexEnvScale(C3D_TexEnv* env, int mode, GPU_TEVSCALE param
 }
 
 // ---- fog and gas ----------------------------------------------------------------------------
+// sh2-vita: data holds the 128 fog factors as float bits (index = depth * 128)
 typedef struct { u32 data[128]; } C3D_FogLut;
 typedef struct { u32 diff[8]; u32 color[8]; } C3D_GasLut;
 
@@ -533,7 +535,9 @@ void C3D_ProcTexColorLutBind(C3D_ProcTexColorLut* lut);
 void ProcTexColorLut_Write(C3D_ProcTexColorLut* out, const u32* in, int offset, int length);
 
 // ---- fragment lighting ----------------------------------------------------------------------
-typedef struct { u32 data[256]; } C3D_LightLut;
+// sh2-vita: data holds 256 floats (as bits). Signed tables cover -1..1 (entries 0..127 for 0..1,
+// 128..255 for -1..0, as the 3DS indexes them); unsigned ones cover 0..1.
+typedef struct { u32 data[256]; u8 is_signed; } C3D_LightLut;
 typedef struct { C3D_LightLut lut; float bias, scale; } C3D_LightLutDA;
 typedef float (*C3D_LightLutFunc)(float x, float param);
 typedef float (*C3D_LightLutFuncDA)(float dist, float arg0, float arg1);
