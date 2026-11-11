@@ -429,10 +429,11 @@ static char* gen_fragment(const FragKey* k)
 		int rf = k->pt_rgb_func < 10 ? k->pt_rgb_func : 0;
 		int af = k->pt_a_func < 10 ? k->pt_a_func : 0;
 		cat(&s, "  float t_prgb = lut(u_pt_rows.x, %s);\n", PT_FUNC[rf]);
-		cat(&s, "  vec4 t_t3 = texture2D(u_lut, vec2((u_pt_offset.x + t_prgb * u_pt_offset.y) / 256.0, u_pt_rows.z));\n");
+		cat(&s, "  vec4 t_t3 = texture2D(u_lut, vec2((u_pt_offset.x + t_prgb * u_pt_offset.y + 0.5) / 256.0, u_pt_rows.z));\n");
 		if (k->pt_separate) {
 			cat(&s, "  float t_pa = lut(u_pt_rows.y, %s);\n", PT_FUNC[af]);
-			cat(&s, "  t_t3.a = texture2D(u_lut, vec2((u_pt_offset.x + t_pa * u_pt_offset.y) / 256.0, u_pt_rows.z)).a;\n");
+			// separate alpha: the alpha map's value is the alpha itself, no colour table lookup (as Citra)
+			cat(&s, "  t_t3.a = t_pa;\n");
 		}
 	} else {
 		cat(&s, "  vec4 t_t3 = vec4(0.0);\n");
@@ -550,7 +551,17 @@ static GLuint compile(GLenum type, const char* a, const char* b)
 	return sh;
 }
 
+static Program* build_one(const FragKey* k, u32 h);
 static Program* build(const FragKey* k, u32 h)
+{
+	u64 t0 = c3d_now_us();
+	Program* p = build_one(k, h);
+	g_c3d_stats.prog_n++;
+	g_c3d_stats.prog_ms += (c3d_now_us() - t0) / 1000.0f;
+	return p;
+}
+
+static Program* build_one(const FragKey* k, u32 h)
 {
 	if (s_nprogs >= MAX_PROGRAMS) {
 		vita_log("shader cache full, starting over");
@@ -912,6 +923,7 @@ static GLenum gl_prim(GPU_Primitive_t p)
 
 void C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size)
 {
+	g_c3d_stats.draws++;
 	if (size <= 0 || !prepare())
 		return;
 	glDrawArrays(gl_prim(primitive), first, size);
@@ -919,6 +931,7 @@ void C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size)
 
 void C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices)
 {
+	g_c3d_stats.draws++;
 	if (count <= 0 || !prepare())
 		return;
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

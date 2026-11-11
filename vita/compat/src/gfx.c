@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <psp2/display.h>
+#include <psp2/power.h>
 #include <psp2/io/stat.h>
 #include <psp2/kernel/processmgr.h>
 #include <vitaGL.h>
@@ -88,6 +89,14 @@ void vita_gl_init(void)
 
 	sceIoMkdir(VITA_DATA_DIR, 0777);
 	vita_log("sh2vita starting");
+
+	// The Vita starts apps at 333 MHz; the game needs the full clocks (as SilentVitaHill and other ports)
+	scePowerSetArmClockFrequency(444);
+	scePowerSetBusClockFrequency(222);
+	scePowerSetGpuClockFrequency(222);
+	scePowerSetGpuXbarClockFrequency(166);
+	vita_log("clocks: cpu %d bus %d gpu %d xbar %d", scePowerGetArmClockFrequency(), scePowerGetBusClockFrequency(),
+	         scePowerGetGpuClockFrequency(), scePowerGetGpuXbarClockFrequency());
 
 	vglInitExtended(0, VITA_SCREEN_W, VITA_SCREEN_H, 16 * 1024 * 1024, SCE_GXM_MULTISAMPLE_NONE);
 	vglWaitVblankStart(GL_FALSE);   // the game paces itself (C3D_FrameEnd)

@@ -40,7 +40,19 @@ const char* vita_path(const char* path)
 	return path;
 }
 
-FILE* vita_fopen(const char* path, const char* mode) { return fopen(vita_path(path), mode); }
+// A file the game wanted to read and could not open goes to log.txt (the first 64), which shows
+// paths the pack names differently.
+static int s_missing_logged;
+FILE* vita_fopen(const char* path, const char* mode)
+{
+	const char* p = vita_path(path);
+	FILE* f = fopen(p, mode);
+	if (!f && mode[0] == 'r' && s_missing_logged < 64 && !strstr(p, "debug.txt") && !strstr(p, "/half/")) {
+		s_missing_logged++;
+		vita_log("could not open %s", p);
+	}
+	return f;
+}
 DIR* vita_opendir(const char* path) { return opendir(vita_path(path)); }
 int vita_stat(const char* path, struct stat* st) { return stat(vita_path(path), st); }
 int vita_mkdir(const char* path, mode_t mode) { return mkdir(vita_path(path), mode); }

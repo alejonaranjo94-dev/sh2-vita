@@ -204,6 +204,7 @@ static void apply_params(C3D_Tex* t)
 
 static void upload(C3D_Tex* t)
 {
+	u64 t0 = c3d_now_us();
 	if (!t->gl_tex)
 		glGenTextures(1, &t->gl_tex);
 	glBindTexture(GL_TEXTURE_2D, t->gl_tex);
@@ -222,6 +223,8 @@ static void upload(C3D_Tex* t)
 	}
 	apply_params(t);
 	t->gl_dirty = 0;
+	g_c3d_stats.tex_n++;
+	g_c3d_stats.tex_ms += (c3d_now_us() - t0) / 1000.0f;
 }
 
 void c3d_tex_upload_if_dirty(C3D_Tex* tex)

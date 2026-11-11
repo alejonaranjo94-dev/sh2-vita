@@ -1,3 +1,6 @@
+#ifdef SH2VITA
+#include "vita_compat.h"
+#endif
 #include "movie.h"
 #include "perf.h"
 #include "supersample.h"
@@ -312,8 +315,12 @@ bool movie_exists(const char* name)
 bool movie_start(const char* name)
 {
 	movie_stop();
-	if (!s_ready)
+	if (!s_ready) {
+#ifdef SH2VITA
+		vita_log("movie %s: player not ready (%s)", name, s_status);
+#endif
 		return false;
+	}
 	char file[24], path[96];
 	int track;
 	resolve(name, file, sizeof file, &track);
@@ -332,6 +339,9 @@ bool movie_start(const char* name)
 
 	s_vplm = plm_create_with_filename(path);
 	s_aplm = s_vplm ? plm_create_with_filename(path) : NULL;
+#ifdef SH2VITA
+	vita_log("movie %s: %s (%s)", name, path, s_vplm ? "opened" : "open failed");
+#endif
 	if (!s_vplm || !s_aplm || !plm_get_num_video_streams(s_vplm)) {
 		snprintf(s_status, sizeof s_status, "missing movie/%s.mpg", file);
 		free_movie();

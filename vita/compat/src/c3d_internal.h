@@ -70,6 +70,14 @@ typedef struct {
 
 extern C3D_State g_c3d;
 
+// Counters for the once-every-few-seconds line in log.txt (c3d_target.c): where the time goes.
+typedef struct {
+	u32 tex_n, prog_n, draws;
+	float tex_ms, prog_ms;
+} C3D_Stats;
+extern C3D_Stats g_c3d_stats;
+u64 c3d_now_us(void);
+
 // c3d_tex.c
 void c3d_tex_upload_if_dirty(C3D_Tex* tex);
 GLenum c3d_wrap(int wrap);

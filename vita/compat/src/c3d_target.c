@@ -45,6 +45,41 @@ void C3Di_RenderQueueWaitDone(void) { glFinish(); }
 float C3D_GetDrawingTime(void) { return s_draw_ms; }
 float C3D_GetProcessingTime(void) { return s_proc_ms; }
 
+C3D_Stats g_c3d_stats;
+u64 c3d_now_us(void) { return sceKernelGetProcessTimeWide(); }
+
+// One line in log.txt every 5 seconds: frames, the slowest, game CPU time per frame (from
+// FrameBegin to FrameEnd), the GPU wait in the swap, texture uploads and shader builds.
+static struct { u64 since; u32 frames; float proc_sum, proc_max, draw_sum, draw_max, gap_max; u64 last_end; } s_st;
+
+static void stats_frame(float proc_ms, float draw_ms)
+{
+	u64 now = sceKernelGetProcessTimeWide();
+	if (!s_st.since)
+		s_st.since = now;
+	if (s_st.last_end) {
+		float gap = (now - s_st.last_end) / 1000.0f;
+		if (gap > s_st.gap_max) s_st.gap_max = gap;
+	}
+	s_st.last_end = now;
+	s_st.frames++;
+	s_st.proc_sum += proc_ms, s_st.draw_sum += draw_ms;
+	if (proc_ms > s_st.proc_max) s_st.proc_max = proc_ms;
+	if (draw_ms > s_st.draw_max) s_st.draw_max = draw_ms;
+	float secs = (now - s_st.since) / 1e6f;
+	if (secs < 5.0f)
+		return;
+	vita_log("perf: %.1f fps, slowest frame %.0f ms | game %.1f ms avg %.0f max | swap %.1f avg %.0f max | "
+	         "%lu draws/frame | tex %lu (%.0f ms) | shaders %lu (%.0f ms)",
+	         s_st.frames / secs, s_st.gap_max, s_st.proc_sum / s_st.frames, s_st.proc_max,
+	         s_st.draw_sum / s_st.frames, s_st.draw_max, (unsigned long)(g_c3d_stats.draws / s_st.frames),
+	         (unsigned long)g_c3d_stats.tex_n, g_c3d_stats.tex_ms, (unsigned long)g_c3d_stats.prog_n, g_c3d_stats.prog_ms);
+	memset(&g_c3d_stats, 0, sizeof g_c3d_stats);
+	u64 last = s_st.last_end;
+	memset(&s_st, 0, sizeof s_st);
+	s_st.since = now, s_st.last_end = last;
+}
+
 bool C3D_FrameBegin(u8 flags)
 {
 	(void)flags;
@@ -70,6 +105,7 @@ void C3D_FrameEnd(u8 flags)
 	vita_present();
 	s_last_swap_us = sceKernelGetProcessTimeWide();
 	s_draw_ms = (s_last_swap_us - t0) / 1000.0f;
+	stats_frame(s_proc_ms, s_draw_ms);
 	g_c3d.target = NULL;
 }
 
