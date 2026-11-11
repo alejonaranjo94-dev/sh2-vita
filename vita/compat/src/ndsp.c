@@ -139,7 +139,8 @@ Result ndspInit(void)
 		s_ch[c].rate = OUT_RATE;
 		s_ch[c].format = NDSP_FORMAT_MONO_PCM16;
 	}
-	s_port = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM, GRAIN, OUT_RATE, SCE_AUDIO_OUT_MODE_STEREO);
+	s_port = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_MAIN,   // a game's port (BGM is for music players)
+	                              GRAIN, OUT_RATE, SCE_AUDIO_OUT_MODE_STEREO);
 	if (s_port < 0) {
 		vita_log("ndspInit: sceAudioOutOpenPort failed 0x%08X", s_port);
 		s_refs = 0;
