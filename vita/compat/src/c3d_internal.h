@@ -74,9 +74,16 @@ extern C3D_State g_c3d;
 typedef struct {
 	u32 tex_n, prog_n, draws;
 	float tex_ms, prog_ms;
+	float prep_ms, gl_ms;          // in prepare() (state, uniforms, textures) and in vitaGL's draw calls
+	u32 vb_new, vb_kb;             // vertex buffers put on the GPU this time; all of them now, in KB
 } C3D_Stats;
 extern C3D_Stats g_c3d_stats;
 u64 c3d_now_us(void);
+extern u32 g_c3d_frame;            // frames ended so far (c3d_target.c)
+// c3d_shader.c: the game wrote [adr, adr + size) (GSPGPU_FlushDataCache): vertex data kept on the
+// GPU from there is stale; and the once-a-frame clean-up of vertex data no longer drawn.
+void c3d_vbuf_mark_written(const void* adr, u32 size);
+void c3d_vbuf_frame(void);
 
 // c3d_tex.c
 void c3d_tex_upload_if_dirty(C3D_Tex* tex);

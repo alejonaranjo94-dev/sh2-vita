@@ -8,6 +8,7 @@
 #include "c3d_internal.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include <stdlib.h>
@@ -905,9 +906,143 @@ static void apply_fixed_function(void)
 	}
 }
 
-// The first vertex the draw uses: the attribute pointers start there, so vitaGL copies only the
-// vertices the draw reads (it copies from the pointer up to the highest index).
-static u32 s_base_vertex;
+// The first vertex the draw uses and how many: the attribute pointers start there, so vitaGL copies
+// only the vertices the draw reads (it copies from the pointer up to the highest index).
+static u32 s_base_vertex, s_vertex_count;
+
+// ---- vertex data kept on the GPU
+// vitaGL copies client-side vertex arrays into its own memory on every draw, so a room's geometry
+// was copied again every frame. A range of vertices drawn in three frames without changing goes into
+// a GL buffer once and is drawn from there. The game tells the GPU about memory it wrote with
+// GSPGPU_FlushDataCache, which drops the copy (c3d_vbuf_mark_written); a range that changes
+// three times, or is small, stays client-side. A few words of the range sampled on every use catch a
+// change the game did not flush. Ranges not drawn for ten seconds are let go.
+typedef struct {
+	const u8* start;      // NULL: free; VB_TOMB: freed (lookups go on past it)
+	u32 bytes, sample, seen_frame, last_frame;
+	GLuint vbo;
+	u8 seen, changes;
+} VBuf;
+#define VB_SLOTS 4096
+#define VB_TOMB ((const u8*)1)
+#define VB_MIN_BYTES 2048
+#define VB_BUDGET (24u * 1024 * 1024)
+static VBuf s_vb[VB_SLOTS];
+static u32 s_vb_bytes;
+static uintptr_t s_vb_lo = UINTPTR_MAX, s_vb_hi;
+
+static u32 vb_sample(const u8* p, u32 bytes)
+{
+	u32 h = 2166136261u, words = bytes / 4;
+	for (u32 i = 0; i < 32; i++) {
+		u32 w;
+		memcpy(&w, p + (u32)((u64)words * i / 32) * 4, 4);
+		h = (h ^ w) * 16777619u;
+	}
+	return h;
+}
+
+static void vb_drop(VBuf* e)
+{
+	if (e->vbo) {
+		glDeleteBuffers(1, &e->vbo);
+		e->vbo = 0;
+		s_vb_bytes -= e->bytes;
+	}
+}
+
+// The GL buffer holding [start, start + bytes), or 0: draw from the game's memory.
+static GLuint vb_get(const u8* start, u32 bytes)
+{
+	if (bytes < VB_MIN_BYTES)
+		return 0;
+	u32 h = (u32)(((uintptr_t)start >> 2) * 2654435761u ^ bytes * 40503u) % VB_SLOTS;
+	VBuf* e = NULL;
+	VBuf* tomb = NULL;
+	for (int n = 0; n < 64; n++, h = (h + 1) % VB_SLOTS) {
+		VBuf* s = &s_vb[h];
+		if (s->start == start && s->bytes == bytes) { e = s; break; }
+		if (s->start == VB_TOMB) { if (!tomb) tomb = s; continue; }
+		if (!s->start) { if (!tomb) tomb = s; break; }
+	}
+	if (!e) {
+		if (!tomb)
+			return 0;
+		e = tomb;
+		memset(e, 0, sizeof *e);
+		e->start = start, e->bytes = bytes;
+		e->sample = vb_sample(start, bytes), e->seen = 1, e->seen_frame = g_c3d_frame;
+		if ((uintptr_t)start < s_vb_lo) s_vb_lo = (uintptr_t)start;
+		if ((uintptr_t)start + bytes > s_vb_hi) s_vb_hi = (uintptr_t)start + bytes;
+		e->last_frame = g_c3d_frame;
+		return 0;
+	}
+	e->last_frame = g_c3d_frame;
+	if (e->changes >= 3)
+		return 0;
+	if (e->vbo) {
+		if (vb_sample(start, bytes) == e->sample)
+			return e->vbo;
+		vb_drop(e);                      // changed without a flush
+		e->changes++, e->seen = 0;
+		return 0;
+	}
+	if (e->seen_frame == g_c3d_frame)
+		return 0;
+	u32 smp = vb_sample(start, bytes);
+	if (smp != e->sample) {
+		e->sample = smp, e->seen = 1, e->changes++;
+		e->seen_frame = g_c3d_frame;
+		return 0;
+	}
+	e->seen_frame = g_c3d_frame;
+	if (++e->seen < 3 || s_vb_bytes + bytes > VB_BUDGET)
+		return 0;
+	glGenBuffers(1, &e->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, e->vbo);
+	glBufferData(GL_ARRAY_BUFFER, bytes, start, GL_STATIC_DRAW);
+	s_vb_bytes += bytes;
+	g_c3d_stats.vb_new++;
+	return e->vbo;
+}
+
+void c3d_vbuf_mark_written(const void* adr, u32 size)
+{
+	uintptr_t a = (uintptr_t)adr, b = a + size;
+	if (b <= s_vb_lo || a >= s_vb_hi)
+		return;
+	for (int i = 0; i < VB_SLOTS; i++) {
+		VBuf* e = &s_vb[i];
+		if (e->start <= VB_TOMB || (uintptr_t)e->start >= b || (uintptr_t)e->start + e->bytes <= a)
+			continue;
+		if (e->vbo) {
+			vb_drop(e);
+			e->changes++;
+		}
+		e->seen = 0, e->seen_frame = g_c3d_frame;
+	}
+}
+
+void c3d_vbuf_frame(void)
+{
+	g_c3d_stats.vb_kb = s_vb_bytes / 1024;
+	if (g_c3d_frame % 64)
+		return;
+	uintptr_t lo = UINTPTR_MAX, hi = 0;
+	for (int i = 0; i < VB_SLOTS; i++) {
+		VBuf* e = &s_vb[i];
+		if (e->start <= VB_TOMB)
+			continue;
+		if (g_c3d_frame - e->last_frame > 600) {
+			vb_drop(e);
+			e->start = VB_TOMB;
+			continue;
+		}
+		if ((uintptr_t)e->start < lo) lo = (uintptr_t)e->start;
+		if ((uintptr_t)e->start + e->bytes > hi) hi = (uintptr_t)e->start + e->bytes;
+	}
+	s_vb_lo = lo, s_vb_hi = hi;
+}
 
 static void bind_vertex_input(void)
 {
@@ -917,10 +1052,13 @@ static void bind_vertex_input(void)
 	const C3D_BufInfo* bi = &g_c3d.buf;
 	u16 loaded = 0;
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	for (int b = 0; b < bi->bufCount; b++) {
 		const u8* base = bi->ptr[b];
 		int off = 0;
+		GLuint vbo = 0;
+		if (bi->stride[b] > 0 && s_vertex_count)
+			vbo = vb_get(base + (size_t)s_base_vertex * bi->stride[b], s_vertex_count * bi->stride[b]);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		for (int k = 0; k < bi->attrCount[b]; k++) {
 			int a = (int)((bi->permutation[b] >> (4 * k)) & 0xF);
 			if (a >= 0xC) {   // padding of 4, 8, 12 or 16 bytes
@@ -935,12 +1073,14 @@ static void bind_vertex_input(void)
 			if (reg < 5) {
 				glEnableVertexAttribArray(reg);
 				glVertexAttribPointer(reg, cnt, TYPE[fmt], GL_FALSE, bi->stride[b],
-				                      base + off + (size_t)s_base_vertex * bi->stride[b]);
+				                      vbo ? (const void*)(uintptr_t)off
+				                          : (const void*)(base + off + (size_t)s_base_vertex * bi->stride[b]));
 				loaded |= (u16)(1u << reg);
 			}
 			off += esz * cnt;
 		}
 	}
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	for (int r = 0; r < 5; r++) {
 		if (loaded & (1u << r))
 			continue;
@@ -1001,6 +1141,14 @@ static bool prepare(void)
 
 void c3d_draw_prepare(void) { prepare(); }
 
+static bool prepare_timed(void)
+{
+	u64 t0 = c3d_now_us();
+	bool ok = prepare();
+	g_c3d_stats.prep_ms += (c3d_now_us() - t0) / 1000.0f;
+	return ok;
+}
+
 static GLenum gl_prim(GPU_Primitive_t p)
 {
 	switch (p) {
@@ -1015,11 +1163,14 @@ void C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size)
 	g_c3d_stats.draws++;
 	if (size <= 0)
 		return;
-	s_base_vertex = first > 0 ? (u32)first : 0;
-	bool ok = prepare();
-	s_base_vertex = 0;
-	if (ok)
-		glDrawArrays(gl_prim(primitive), 0, size);
+	s_base_vertex = first > 0 ? (u32)first : 0, s_vertex_count = (u32)size;
+	bool ok = prepare_timed();
+	s_base_vertex = s_vertex_count = 0;
+	if (!ok)
+		return;
+	u64 t0 = c3d_now_us();
+	glDrawArrays(gl_prim(primitive), 0, size);
+	g_c3d_stats.gl_ms += (c3d_now_us() - t0) / 1000.0f;
 }
 
 // The indices rebased to the lowest one, which becomes the base vertex: a room draws its batches
@@ -1058,13 +1209,15 @@ void C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void
 		for (int i = 0; i < count; i++)
 			s_idx[i] = (u16)(in[i] - lo);
 	}
-	s_base_vertex = lo;
-	bool ok = prepare();
-	s_base_vertex = 0;
+	s_base_vertex = lo, s_vertex_count = hi - lo + 1;
+	bool ok = prepare_timed();
+	s_base_vertex = s_vertex_count = 0;
 	if (!ok)
 		return;
+	u64 t0 = c3d_now_us();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glDrawRangeElements(gl_prim(primitive), 0, hi - lo, count, GL_UNSIGNED_SHORT, s_idx);
+	g_c3d_stats.gl_ms += (c3d_now_us() - t0) / 1000.0f;
 }
 
 void C3D_ImmDrawBegin(GPU_Primitive_t primitive) { (void)primitive; vita_log("C3D_ImmDrawBegin: not implemented"); }

@@ -161,6 +161,35 @@ static void* decode_level(const C3D_Tex* t, const u8* src, int w, int h, GLenum*
 		*gl_fmt = GL_RGBA;
 		*gl_type = GL_UNSIGNED_BYTE;
 	}
+	// The common formats a tile at a time: the 64 texels of an 8 x 8 tile lie in Z-order, one after
+	// another in memory, so each is read once in order and the switch is taken once per texture.
+	static u8 zx[64], zy[64];
+	if (!zx[63]) {
+		for (u32 y = 0; y < 8; y++)
+			for (u32 x = 0; x < 8; x++)
+				zx[morton8(x, y)] = (u8)x, zy[morton8(x, y)] = (u8)y;
+	}
+#define TILES(BYTES, BODY)                                                                          \
+	for (int ty = 0; ty < h; ty += 8)                                                              \
+		for (int tx = 0; tx < w; tx += 8) {                                                        \
+			const u8* s = src + ((size_t)(ty >> 3) * (w >> 3) + (tx >> 3)) * 64 * (BYTES);         \
+			for (int k = 0; k < 64; k++, s += (BYTES)) {                                           \
+				u8* o = out + ((size_t)(ty + zy[k]) * w + tx + zx[k]) * out_bpp;                   \
+				BODY;                                                                              \
+			}                                                                                      \
+		}
+	switch (t->fmt) {
+	case GPU_RGB565: case GPU_RGBA5551: case GPU_RGBA4:
+		TILES(2, o[0] = s[0]; o[1] = s[1]) return out;
+	case GPU_RGBA8: TILES(4, o[0] = s[3]; o[1] = s[2]; o[2] = s[1]; o[3] = s[0]) return out;
+	case GPU_RGB8: TILES(3, o[0] = s[2]; o[1] = s[1]; o[2] = s[0]; o[3] = 255) return out;
+	case GPU_LA8: case GPU_HILO8: TILES(2, o[0] = o[1] = o[2] = s[1]; o[3] = s[0]) return out;
+	case GPU_L8: TILES(1, o[0] = o[1] = o[2] = s[0]; o[3] = 255) return out;
+	case GPU_A8: TILES(1, o[0] = o[1] = o[2] = 0; o[3] = s[0]) return out;
+	case GPU_LA4: TILES(1, o[0] = o[1] = o[2] = (s[0] >> 4) * 17; o[3] = (s[0] & 15) * 17) return out;
+	default: break;
+	}
+#undef TILES
 	for (int y = 0; y < h; y++)
 		for (int x = 0; x < w; x++) {
 			u32 tile = ((u32)(y >> 3) * (w >> 3) + (x >> 3)) * 64;

@@ -46,6 +46,7 @@ float C3D_GetDrawingTime(void) { return s_draw_ms; }
 float C3D_GetProcessingTime(void) { return s_proc_ms; }
 
 C3D_Stats g_c3d_stats;
+u32 g_c3d_frame;
 u64 c3d_now_us(void) { return sceKernelGetProcessTimeWide(); }
 
 // One line in log.txt every 5 seconds: frames, the slowest, game CPU time per frame (from
@@ -70,10 +71,13 @@ static void stats_frame(float proc_ms, float draw_ms)
 	if (secs < 5.0f)
 		return;
 	vita_log("perf: %.1f fps, slowest frame %.0f ms | game %.1f ms avg %.0f max | swap %.1f avg %.0f max | "
-	         "%lu draws/frame | tex %lu (%.0f ms) | shaders %lu (%.0f ms)",
+	         "%lu draws/frame | tex %lu (%.0f ms) | shaders %lu (%.0f ms) | prep %.1f gl %.1f ms/frame | "
+	         "vbuf +%lu, %lu KB",
 	         s_st.frames / secs, s_st.gap_max, s_st.proc_sum / s_st.frames, s_st.proc_max,
 	         s_st.draw_sum / s_st.frames, s_st.draw_max, (unsigned long)(g_c3d_stats.draws / s_st.frames),
-	         (unsigned long)g_c3d_stats.tex_n, g_c3d_stats.tex_ms, (unsigned long)g_c3d_stats.prog_n, g_c3d_stats.prog_ms);
+	         (unsigned long)g_c3d_stats.tex_n, g_c3d_stats.tex_ms, (unsigned long)g_c3d_stats.prog_n, g_c3d_stats.prog_ms,
+	         g_c3d_stats.prep_ms / s_st.frames, g_c3d_stats.gl_ms / s_st.frames, (unsigned long)g_c3d_stats.vb_new,
+	         (unsigned long)g_c3d_stats.vb_kb);
 	memset(&g_c3d_stats, 0, sizeof g_c3d_stats);
 	u64 last = s_st.last_end;
 	memset(&s_st, 0, sizeof s_st);
@@ -104,6 +108,8 @@ void C3D_FrameEnd(u8 flags)
 
 	vita_present();
 	s_last_swap_us = sceKernelGetProcessTimeWide();
+	g_c3d_frame++;
+	c3d_vbuf_frame();
 	s_draw_ms = (s_last_swap_us - t0) / 1000.0f;
 	stats_frame(s_proc_ms, s_draw_ms);
 	g_c3d.target = NULL;
