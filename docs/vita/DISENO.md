@@ -1,6 +1,6 @@
 # sh2-vita — Diseño del port de Silent Hill 2 a PS Vita
 
-Fecha: 2026-11-10. Proyecto personal (repo privado). Basado en
+Fecha: 2026-11-10. Proyecto personal. Basado en
 [sh23ds](https://github.com/ankushKun/sh23ds) (GPL-3.0); referencia de Vita:
 [SilentVitaHill](https://github.com/khajit2412/SilentVitaHill).
 

@@ -42,6 +42,10 @@ static const char* const s_elsewhere[] = {
 
 #define GUIDE_URL "ankush.one/sh23ds/install.html"
 #define PACKER_URL "ankush.one/sh23ds/packer.html"
+#ifdef SH2VITA
+#define VITA_GUIDE "github.com/alejonaranjo94-dev/sh2-vita"
+#define VITA_PACK_DIR "ux0:data/sh2vita"
+#endif
 
 // The website's colours (site/site.css), 0xRRGGBB
 #define C_TEXT 0xdadada
@@ -457,6 +461,9 @@ static void top_screen(Screen* s, const char* pack_dir, int kind, const char* fo
 {
 	const int x = 26, w = 400 - 2 * x;
 	char line[160];
+#ifdef SH2VITA
+	pack_dir = VITA_PACK_DIR;    // where vita/compat/src/fs.c reads the game's sdmc:/3ds/sh23ds
+#endif
 	label(s, x, 30, "GAME DATA");
 	text(s, ND_TITLE, x - 1, 70, C_TEXT,
 	     kind == KIND_ELSEWHERE ? "WRONG FOLDER" : kind == KIND_INCOMPLETE ? "INCOMPLETE" : "NOT FOUND", ND_SUB);
@@ -470,7 +477,11 @@ static void top_screen(Screen* s, const char* pack_dir, int kind, const char* fo
 		snprintf(line, sizeof line, "%s/", pack_dir);
 		text(s, ND_MONO, x + 72, 172, C_HI, line, 0);
 		para(s, x, 204, w, 18, ND_BODY, C_TEXT2,
+#ifdef SH2VITA
+		     "Move it on a computer or with VitaShell, and keep any save*.dat files already there.");
+#else
 		     "Move it on a computer or with GodMode9, and keep any save*.dat files already there.");
+#endif
 	} else if (kind == KIND_INCOMPLETE) {
 		snprintf(line, sizeof line, "Some of it is missing from " MONO "%s/" BASE ". The copy or the packer "
 		         "stopped before the end.", pack_dir);
@@ -487,14 +498,24 @@ static void top_screen(Screen* s, const char* pack_dir, int kind, const char* fo
 			text(s, ND_MONO, x + 72, y, C_DIM, line, 0);
 		}
 		para(s, x, y + 28, w, 18, ND_BODY, C_TEXT2,
+#ifdef SH2VITA
+		     "Copy the packer's game data to " VITA_PACK_DIR " again. Back up your save*.dat files first.");
+#else
 		     "Copy the 3ds folder from the packer to the card again. Back up your save*.dat files first.");
+#endif
 	} else {
 		para(s, x, 96, w, 19, ND_ITALIC, C_DIM,
 		     "The engine is here. The game comes from your own PC copy, converted once on a computer.");
 		static const char* const steps[] = {
+#ifdef SH2VITA
+			"Run the packer on a computer, as the guide says:\n" MONO VITA_GUIDE,
+			"Copy the game data it makes to " VITA_PACK_DIR,
+			"Start Silent Hill 2 again",
+#else
 			"Open the packer on a computer:\n" MONO PACKER_URL,
 			"Copy the 3ds folder it makes to the SD card",
 			"Put the card back and start sh23ds again",
+#endif
 		};
 		int y = 146;
 		for (int i = 0; i < 3; i++) {

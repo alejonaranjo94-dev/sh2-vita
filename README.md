@@ -1,3 +1,86 @@
+# sh2-vita: Silent Hill 2 for PS Vita
+
+An unofficial PS Vita port of [sh23ds](https://github.com/ankushKun/sh23ds), the native Silent Hill 2
+(PC Director's Cut) engine for the Nintendo 3DS. The game code is sh23ds's; this fork puts it on the
+Vita through a compatibility layer (`vita/compat/`: citro3d on vitaGL, the 3DS input, sound and file
+calls on the Vita's), with one screen laid out as on the PC and PlayStation controls.
+
+**This repository contains no game data.** You need your own copy of the PC game, which the packer
+converts on your computer. Not affiliated with or endorsed by Konami.
+
+> [!NOTE]
+> Development build, tested on one console. Expect rough edges and please report what you find in
+> this repository's issues, not sh23ds's.
+
+## What you need
+
+- A PS Vita or PS TV with HENkaku / Ensō and VitaShell.
+- `libshacccg.suprx` in `ur0:data/` (install it with [ShaRKBR33D](https://github.com/Rinnegatamante/ShaRKBR33D)).
+- Silent Hill 2 PC Director's Cut (the 2003 release), installed on a computer.
+- About 2 GB free on `ux0:`.
+
+## Install
+
+1. **Convert your game.** Either open the sh23ds packer page
+   ([ankush.one/sh23ds/packer.html](https://ankush.one/sh23ds/packer.html)) in Chrome or Edge, or run
+   it from this repository with Node.js 20+:
+   ```
+   cd tools/packer-web && npm ci && cd ../..
+   python tools/packer-web/bundle.py
+   node tools/packer-web/run.mjs "C:/Games/Silent Hill 2" out/sh2vita
+   ```
+   It takes about an hour and makes about 1.8 GB.
+2. **Copy the game data** to the Vita as `ux0:data/sh2vita/` (from the web packer, the contents of
+   its `3ds/sh23ds/` folder). The folder holds `files.txt` and folders such as `data/` and `sound/`.
+3. **Install `sh2vita.vpk`** (from Releases, or built yourself) with VitaShell.
+
+Settings, saves and `log.txt` are kept in `ux0:data/sh2vita/`. A `debug.txt` there with the line
+`perflog 1` adds the frame times to the log.
+
+## Controls
+
+| Button | In play |
+| --- | --- |
+| Left stick | Move |
+| Right stick | Camera (Behind camera); next target while aiming |
+| Cross | Check, open, pick up; attack while aiming |
+| Square (hold) | Run |
+| Circle | Items (Circle closes them) |
+| Triangle | Map (Triangle or Circle closes it) |
+| R (hold) | Aim |
+| L | Quick turn |
+| D-Pad up / down / left / right | Look, next weapon, quick heal, flashlight |
+| START | Pause |
+
+In menus Cross takes, Circle goes back and the D-Pad or the left stick moves; the front touch screen
+taps the list. Every action can be rebound in Options, Controls, Buttons. More in
+[port/CONTROLS.md](port/CONTROLS.md#ps-vita).
+
+## Building
+
+The VPK is built by GitHub Actions on every push to the `vita` branch
+([.github/workflows/vita.yml](.github/workflows/vita.yml)). Locally, with
+[VitaSDK](https://vitasdk.org) and `vdpm zlib taihen libmathneon vitaShaRK SceShaccCgExt vitaGL`:
+```
+cmake -S vita -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+Notes on the port (in Spanish): [docs/vita/](docs/vita/).
+
+## Credits and license
+
+- [sh23ds](https://github.com/ankushKun/sh23ds) by ankushKun and its contributors: the engine, the
+  packer and nearly all of the code here.
+- [vitaGL and vitaShaRK](https://github.com/Rinnegatamante) by Rinnegatamante, and
+  [SilentVitaHill](https://github.com/khajit2412/SilentVitaHill), whose notes on vitaGL helped.
+- Silent Hill 2 is a trademark of Konami. No part of the game is included.
+
+GPL-3.0, as sh23ds ([LICENSE](LICENSE)).
+
+---
+
+*The original sh23ds README follows.*
+
 <p align="center">
   <img src="site/assets/banner.jpg" width="720" alt="Silent Hill 2 running on a Nintendo 3DS: James at the lake overlook on the top screen and the town map on the touch screen">
 </p>

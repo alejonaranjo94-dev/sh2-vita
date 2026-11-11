@@ -3521,8 +3521,13 @@ static bool screens_update(u32 down, u32 held, const circlePosition* cp, float d
 	                     bgm_room_id(ev_glb_crd(), s_px, s_pz) == 0xaa);   // as open_map
 	if (!screens_open()) {
 		bool free = !prog_running() && !s_inv_open && !s_msg_page && !s_save_prompt && !s_warp_pending;
-		if (free && ((down & KEY_TOUCH) || (s_gdown & GK_MAP)))
+		if (free && ((down & KEY_TOUCH) || (s_gdown & GK_MAP))) {
 			open_map();
+			// the press that opened the map is not the map screen's too: on the Vita the map's own
+			// button closes it again (map_update), so it would shut in the frame it opened
+			if (screens_open())
+				return true;
+		}
 		if (!screens_open())
 			return false;
 	}
