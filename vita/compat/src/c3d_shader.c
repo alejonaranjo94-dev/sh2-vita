@@ -926,7 +926,7 @@ typedef struct {
 #define VB_SLOTS 4096
 #define VB_TOMB ((const u8*)1)
 #define VB_MIN_BYTES 2048
-#define VB_BUDGET (24u * 1024 * 1024)
+#define VB_BUDGET (32u * 1024 * 1024)
 static VBuf s_vb[VB_SLOTS];
 static u32 s_vb_bytes;
 static uintptr_t s_vb_lo = UINTPTR_MAX, s_vb_hi;
@@ -948,6 +948,20 @@ static void vb_drop(VBuf* e)
 		glDeleteBuffers(1, &e->vbo);
 		e->vbo = 0;
 		s_vb_bytes -= e->bytes;
+	}
+}
+
+// The budget is full: let go of the buffers not drawn in the last second (once a frame at most).
+static u32 s_vb_evicted_frame = ~0u;
+static void vb_evict_idle(void)
+{
+	if (s_vb_evicted_frame == g_c3d_frame)
+		return;
+	s_vb_evicted_frame = g_c3d_frame;
+	for (int i = 0; i < VB_SLOTS; i++) {
+		VBuf* e = &s_vb[i];
+		if (e->start > VB_TOMB && e->vbo && g_c3d_frame - e->last_frame > 60)
+			vb_drop(e), e->seen = 0;
 	}
 }
 
@@ -996,8 +1010,13 @@ static GLuint vb_get(const u8* start, u32 bytes)
 		return 0;
 	}
 	e->seen_frame = g_c3d_frame;
-	if (++e->seen < 3 || s_vb_bytes + bytes > VB_BUDGET)
+	if (++e->seen < 3)
 		return 0;
+	if (s_vb_bytes + bytes > VB_BUDGET) {
+		vb_evict_idle();
+		if (s_vb_bytes + bytes > VB_BUDGET)
+			return 0;
+	}
 	glGenBuffers(1, &e->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, e->vbo);
 	glBufferData(GL_ARRAY_BUFFER, bytes, start, GL_STATIC_DRAW);

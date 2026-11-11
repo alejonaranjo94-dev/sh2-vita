@@ -9,7 +9,13 @@
 
 #define MUSIC_CH 0
 #define VOICE_CH 1                  // cutscene voices (demo.c); sfx.c uses 8..23
+#ifdef SH2VITA
+// The Vita's memory card can keep a read waiting well past the 3DS's 0.4 s while the game streams an
+// area (log.txt / perf.txt "gaps"): about a second of music queued instead
+#define NBUF 12
+#else
 #define NBUF 4
+#endif
 #define BUF_SAMPLES 4096            // per channel per buffer
 #define MAX_CH 2
 #define MAX_LAYERS 8
@@ -206,7 +212,12 @@ static void thread_start(void)
 	s_quit = false;
 	// core 2 on a New 3DS, core 0 on an Old 3DS (profile_music_core says why)
 	for (int core = profile_music_core(); !s_thread; core = -2) {
+#ifdef SH2VITA
+		// ahead of the game's own threads, so its reads and decoding are never kept waiting
+		s_thread = threadCreate(refill_thread, NULL, 16 * 1024, prio - 2, core, false);
+#else
 		s_thread = threadCreate(refill_thread, NULL, 16 * 1024, prio + 1, core, false);
+#endif
 		s_core = core;
 		if (core == -2)
 			break;
@@ -334,7 +345,11 @@ static bool adx_header(Stream* s, Layer* l, const u8* h, u32 len)
 // voice's small reads used to wait for it, and the four PCM buffers (about 0.4 s) ran dry: cutscene
 // voices stuttered on hardware, never in Azahar, where reads take no time. With up to 192 KB held
 // (seconds of a voice, about a second of layered music) a long read elsewhere goes unheard.
+#ifdef SH2VITA
+#define RB_SIZE (1024 * 1024)      // a few seconds of layered music between reads
+#else
 #define RB_SIZE (192 * 1024)
+#endif
 
 static void rb_fill(Stream* s)
 {
