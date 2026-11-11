@@ -15,3 +15,5 @@ extern volatile bool g_vita_quit;
 // gfx.c: called by C3D_FrameEnd once the 3DS top screen's image is ready, to put it on the Vita's
 // screen (rotated back from the 3DS's portrait layout and scaled to 960x544).
 void vita_present(void);
+// gfx.c: the shader source being compiled (NULL, NULL after), logged if the compile fails
+void vita_shader_compiling(const char* a, const char* b);

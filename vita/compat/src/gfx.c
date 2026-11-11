@@ -24,16 +24,47 @@ static GLint s_loc_pos, s_loc_uv, s_loc_tex;
 static u8* s_fb[2];               // the 3DS framebuffers: top 240 x 400, bottom 240 x 320, 4 bytes a pixel
 static bool s_fb_used;            // the game wrote the top framebuffer since the last present
 
+// The shader being compiled (set by vita_shader_compiling), so a compile error can log its source:
+// vitaGL can hang after a failed compile, before the caller sees the error.
+static const char* s_src[2];
+static bool s_src_dumped;
+
+void vita_shader_compiling(const char* a, const char* b)
+{
+	s_src[0] = a, s_src[1] = b, s_src_dumped = false;
+}
+
+static void dump_source(void)
+{
+	int n = 1;
+	for (int i = 0; i < 2; i++) {
+		const char* p = s_src[i];
+		while (p && *p) {
+			const char* e = strchr(p, '\n');
+			int len = e ? (int)(e - p) : (int)strlen(p);
+			vita_log("%4d| %.*s", n++, len, p);
+			p = e ? e + 1 : p + len;
+		}
+	}
+}
+
 static void shark_log(const char* msg, shark_log_level level, int line)
 {
 	vita_log("[SHARK %d] line %d: %s", (int)level, line, msg);
+	if ((int)level >= 2 && !s_src_dumped && (s_src[0] || s_src[1])) {
+		s_src_dumped = true;
+		vita_log("source of the shader that failed:");
+		dump_source();
+	}
 }
 
 static GLuint compile(GLenum type, const char* src)
 {
 	GLuint s = glCreateShader(type);
 	glShaderSource(s, 1, &src, NULL);
+	vita_shader_compiling(src, NULL);
 	glCompileShader(s);
+	vita_shader_compiling(NULL, NULL);
 	return s;
 }
 

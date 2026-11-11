@@ -406,7 +406,7 @@ static char* gen_fragment(const FragKey* k)
 	        "uniform vec3 u_scene_amb;\nuniform vec3 u_lpos[8];\nuniform vec3 u_ldiff[8];\nuniform vec3 u_lamb[8];\n"
 	        "uniform vec3 u_lspec[8];\nuniform vec3 u_lspot[8];\nuniform vec2 u_lda[8];\nuniform vec2 u_lrows[8];\n"
 	        "uniform float u_d0_row;\n"
-	        "float lut(float row, float x) { return texture2D(u_lut, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + (0.5 / 256.0), row)).r; }\n"
+	        "float lut(float lrow, float x) { return texture2D(u_lut, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + (0.5 / 256.0), lrow)).r; }\n"
 	        "vec2 tflip(vec2 t, float f) { return vec2(t.x, mix(t.y, 1.0 - t.y, f)); }\n"
 	        "void main() {\n");
 
@@ -544,7 +544,9 @@ static GLuint compile(GLenum type, const char* a, const char* b)
 	const char* srcs[2] = { a, b };
 	GLuint sh = glCreateShader(type);
 	glShaderSource(sh, b ? 2 : 1, srcs, NULL);
+	vita_shader_compiling(a, b);
 	glCompileShader(sh);
+	vita_shader_compiling(NULL, NULL);
 	return sh;
 }
 
