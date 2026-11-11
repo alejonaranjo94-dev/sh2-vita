@@ -1,8 +1,12 @@
 // sh2-vita: the screens. vitaGL start-up, the 3DS framebuffers the game writes by hand (the
 // "game data not found" screen) and the picture the Vita shows each frame.
 //
-// The 3DS top screen is 400 x 240; on the Vita it is scaled to the full height (906 x 544) and
-// centred. The bottom screen is not shown: its functions move to PC-style menus in phase 5.
+// One screen, as on the PC. In play, scenes, movies and the map the 3DS top screen fills the
+// Vita's height (906 x 544, centred) and the touch screen's page is not shown: the PC has no HUD,
+// and every button it offered is on a Vita button. When a menu is up (title, pause, items, options,
+// save files, questions, puzzles) its list is drawn on the left and what the top screen shows
+// (the item, the setting explained, the save file) on the right, on one black ground; the front
+// touch screen taps the list (vita_touch_panel). touchui.c says which of the two (vita_ui_layout).
 #include <citro3d.h>
 
 #include <stdlib.h>
@@ -24,6 +28,34 @@ static GLuint s_prog, s_fb_tex;
 static GLint s_loc_pos, s_loc_uv, s_loc_tex;
 static u8* s_fb[2];               // the 3DS framebuffers: top 240 x 400, bottom 240 x 320, 4 bytes a pixel
 static bool s_fb_used;            // the game wrote the top framebuffer since the last present
+static int s_layout = VITA_UI_FULL;
+
+// The split layout, in Vita pixels: the list (320 x 240 at 1.4) on the left, the top screen
+// (400 x 240 at 1.28) on the right, both centred on the height.
+#define LIST_X 0.0f
+#define LIST_W 448.0f
+#define LIST_H 336.0f
+#define LIST_Y ((VITA_SCREEN_H - LIST_H) * 0.5f)
+#define SUBJ_X LIST_W
+#define SUBJ_W (VITA_SCREEN_W - LIST_W)
+#define SUBJ_H (SUBJ_W * 240.0f / 400.0f)
+#define SUBJ_Y ((VITA_SCREEN_H - SUBJ_H) * 0.5f)
+
+void vita_ui_layout(int layout) { s_layout = layout; }
+
+bool vita_touch_panel(int sx, int sy, bool clamp, u16* px, u16* py)
+{
+	if (s_layout != VITA_UI_SPLIT)
+		return false;
+	float u = (sx - LIST_X) / LIST_W, v = (sy - LIST_Y) / LIST_H;
+	bool inside = u >= 0.0f && u < 1.0f && v >= 0.0f && v < 1.0f;
+	if (!inside && !clamp)
+		return false;
+	u = u < 0.0f ? 0.0f : u > 0.999f ? 0.999f : u;
+	v = v < 0.0f ? 0.0f : v > 0.999f ? 0.999f : v;
+	*px = (u16)(u * 320.0f), *py = (u16)(v * 240.0f);
+	return true;
+}
 
 // The shader being compiled (set by vita_shader_compiling), so a compile error can log its source:
 // vitaGL can hang after a failed compile, before the caller sees the error.
@@ -121,10 +153,7 @@ void vita_gl_init(void)
 	vita_log("vitaGL ready");
 }
 
-// Draws texture tex over the 3DS top screen's area. uv_of maps a corner of the screen (u right,
-// v down, both 0..1) to the texture coordinates holding it; the 3DS's pictures are portrait and
-// turned, and which way depends on where they come from (see the two callers).
-static void draw_screen(GLuint tex, bool from_target)
+static void begin_screen(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, VITA_SCREEN_W, VITA_SCREEN_H);
@@ -136,17 +165,22 @@ static void draw_screen(GLuint tex, bool from_target)
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT);
+}
 
-	// 400 x 240 scaled to 544 high is 906.67 wide
-	float half_w = (VITA_SCREEN_H * 400.0f / 240.0f) / VITA_SCREEN_W;
-	float pos[8] = { -half_w, 1, half_w, 1, -half_w, -1, half_w, -1 };   // TL, TR, BL, BR
-	float corners[4][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } };     // (u, v) of each
+// Draws a 3DS screen's texture into the rectangle (x, y, w, h) of the Vita's screen (pixels, y
+// down). The 3DS's pictures are portrait and turned, and which way depends on where they come from:
+// a render target (GL's own rows, bottom first) has the screen's left edge as its top row and its
+// top edge as the right column (the Tilt matrices); a framebuffer the game wrote by hand (3DS
+// memory order) has each memory row as one screen column, left first, top pixel last.
+static void blit(GLuint tex, float x, float y, float w, float h, bool from_target)
+{
+	float l = x / (VITA_SCREEN_W * 0.5f) - 1.0f, r = (x + w) / (VITA_SCREEN_W * 0.5f) - 1.0f;
+	float t = 1.0f - y / (VITA_SCREEN_H * 0.5f), b = 1.0f - (y + h) / (VITA_SCREEN_H * 0.5f);
+	float pos[8] = { l, t, r, t, l, b, r, b };                         // TL, TR, BL, BR
+	float corners[4][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } };   // (u, v) of each
 	float uv[8];
 	for (int i = 0; i < 4; i++) {
 		float u = corners[i][0], v = corners[i][1];
-		// A render target (GL's own rows, bottom first): the screen's left edge is the top row and
-		// its top edge the right column (the Tilt matrices). A framebuffer the game wrote by hand
-		// (3DS memory order): each memory row is one screen column, left first, top pixel last.
 		uv[i * 2] = 1.0f - v;
 		uv[i * 2 + 1] = from_target ? 1.0f - u : u;
 	}
@@ -165,12 +199,26 @@ static void draw_screen(GLuint tex, bool from_target)
 	glDisableVertexAttribArray(s_loc_uv);
 }
 
+// The top screen alone, scaled to the full height: 400 x 240 at 544 high is 906.67 wide.
+static void draw_full(GLuint tex, bool from_target)
+{
+	float w = VITA_SCREEN_H * 400.0f / 240.0f;
+	blit(tex, (VITA_SCREEN_W - w) * 0.5f, 0.0f, w, VITA_SCREEN_H, from_target);
+}
+
+static GLuint target_tex(C3D_RenderTarget* rt) { return rt->gl_tex ? rt->gl_tex->gl_tex : rt->gl_color; }
+
 void vita_present(void)
 {
 	C3D_RenderTarget* top = g_c3d_top_output;
-	if (top) {
-		GLuint tex = top->gl_tex ? top->gl_tex->gl_tex : top->gl_color;
-		draw_screen(tex, true);
+	C3D_RenderTarget* bottom = g_c3d_bottom_output;
+	begin_screen();
+	if (s_layout == VITA_UI_SPLIT && bottom) {
+		blit(target_tex(bottom), LIST_X, LIST_Y, LIST_W, LIST_H, true);
+		if (top)
+			blit(target_tex(top), SUBJ_X, SUBJ_Y, SUBJ_W, SUBJ_H, true);
+	} else if (top) {
+		draw_full(target_tex(top), true);
 	}
 	vglSwapBuffers(GL_FALSE);
 }
@@ -211,7 +259,8 @@ void gfxSwapBuffers(void)
 	}
 	glBindTexture(GL_TEXTURE_2D, s_fb_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 240, 400, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
-	draw_screen(s_fb_tex, false);
+	begin_screen();
+	draw_full(s_fb_tex, false);
 	vglSwapBuffers(GL_FALSE);
 }
 

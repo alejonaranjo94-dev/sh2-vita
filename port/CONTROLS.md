@@ -229,3 +229,31 @@ up it goes over his right shoulder; with a target locked it frames James and the
 the circle pad's x strafes instead of turning. In this mode the stick moves James relative to the
 camera (Directional Style's reading, taken every frame). Cutscenes, the event roads and program shots
 of the .cam data, the boat and the viewer keep the PC camera.
+
+## PS Vita
+
+The Vita build (`SH2VITA`) has one layout of its own (`controls_default`), in the PS2's way. The
+Vita's buttons reach the game as the 3DS's by place and meaning (`vita/compat/src/hid.c`: Cross = A,
+Circle = B, Square = Y, Triangle = X, the left stick the Circle Pad, the right stick the C-Stick).
+
+| Action | PS Vita |
+| --- | --- |
+| Move | left stick |
+| Action (check, open, pick up; attack while aiming) | Cross |
+| Run (hold) | Square |
+| Items | Circle (Circle backs out again) |
+| Map | Triangle (Triangle or Circle puts it away) |
+| Aim (hold) | R |
+| Quick turn | L |
+| Look | D-Pad up |
+| Next weapon | D-Pad down |
+| Quick heal | D-Pad left |
+| Flashlight | D-Pad right |
+| Behind camera; target left / right while aiming | right stick |
+| Strafe left / right | none (bindable) |
+| Pause | START |
+
+Menus keep their keys: Cross takes, Circle goes back, the D-Pad or the left stick moves. Every action
+can be rebound on the Buttons page as on the 3DS (no ZL or ZR to offer); the Options' Layout,
+Hardware, 3D and Messages rows are the 3DS's alone and not shown. Prompts draw the PlayStation
+symbols in their rings, and texts name the buttons Cross, Circle, Square and Triangle.

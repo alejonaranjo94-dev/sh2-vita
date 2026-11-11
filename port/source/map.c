@@ -1,6 +1,9 @@
 #include "map.h"
 #include "i18n.h"
 #include "bgm.h"
+#ifdef SH2VITA
+#include "controls.h"
+#endif
 #include "events.h"
 #include "prog.h"
 #include "sdio.h"
@@ -594,7 +597,13 @@ bool map_update(u32 down, u32 held, const circlePosition* cp, float dt)
 		s_zoom = 1.0f, s_zoom_state = 2;
 	if (s_zoom_state == 3 && (s_zoom -= dt * 2.0f) <= 0.0f)
 		s_zoom = 0.0f, s_zoom_state = 0;
-	if (down & (KEY_B | KEY_START)) {
+	u32 close = KEY_B | KEY_START;
+#ifdef SH2VITA
+	// the map's own button (Triangle) puts it away again, as the PC's map key does; not one the
+	// screen uses itself (the D-Pad, A, L or R)
+	close |= controls_keys(ACT_MAP) & ~(KEY_A | KEY_L | KEY_R | KEY_DUP | KEY_DDOWN | KEY_DLEFT | KEY_DRIGHT);
+#endif
+	if (down & close) {
 		map_close();
 		return false;
 	}

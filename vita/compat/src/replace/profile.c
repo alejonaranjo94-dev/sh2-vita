@@ -57,7 +57,8 @@ QualityLevel profile_quality(void)
 	return QUALITY_HIGH;
 }
 
-ControlsLayout controls_layout(void) { return P.layout == CHOICE_LOW_OLD ? CONTROLS_LAYOUT_OLD : CONTROLS_LAYOUT_NEW; }
+// One layout on the Vita (controls.c's Vita defaults); the Options' Layout row is the 3DS's alone.
+ControlsLayout controls_layout(void) { return CONTROLS_LAYOUT_NEW; }
 
 bool hidShouldUseIrrst(void) { return true; }
 

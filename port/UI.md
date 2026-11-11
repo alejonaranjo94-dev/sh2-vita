@@ -222,3 +222,16 @@ state above as a screenshot), then run on a New 3DS before the next starts.
 2. Pause, options, save files, title, levels, movies, messages and questions moved to the rule.
 3. Items with the model on top, memos, the map page, puzzle panels, game over and results; the old
    text-console copies of these screens taken out of `main.c`.
+
+## PS Vita: one screen
+
+The Vita has one screen, so the two are put together as the PC shows its front end
+(`vita/compat/src/gfx.c`, `touchui.c` `touchui_frame`):
+
+- Play, scenes, movies, messages and the map: the top screen alone, scaled to the full height. The
+  play page is not shown (the PC has no HUD): its map, weapon and healing items are on buttons.
+  Messages and subtitles are always in the PC's window (Messages is set to Top).
+- Whenever there is something to choose (title, pause, items, memos, save files, options, questions,
+  the first run, puzzle panels): the list on the left (the touch screen's page at 1.4) and the
+  subject on the right (the top screen at 1.28), on one black ground. A tap on the list works as on
+  the touch screen; a finger that starts there stays on it until lifted.

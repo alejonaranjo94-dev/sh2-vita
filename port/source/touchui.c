@@ -17,6 +17,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef SH2VITA
+#include "vita_compat.h"     // vita_ui_layout: the Vita has one screen (vita/compat/src/gfx.c)
+#endif
 
 // ---------------------------------------------------------------- state
 
@@ -563,7 +566,11 @@ static const char* key_name(u32 key)
 	static const struct { u32 key; const char* name; } names[] = {
 		{ KEY_A, "A" }, { KEY_B, "B" }, { KEY_X, "X" }, { KEY_Y, "Y" }, { KEY_L, "L" }, { KEY_R, "R" },
 		{ KEY_ZL, "ZL" }, { KEY_ZR, "ZR" }, { KEY_START, "START" }, { KEY_SELECT, "SELECT" },
+#ifdef SH2VITA
+		{ KEY_CSTICK_UP, "RS" }, { KEY_CSTICK_DOWN, "RS" }, { KEY_CSTICK_LEFT, "RS" }, { KEY_CSTICK_RIGHT, "RS" },
+#else
 		{ KEY_CSTICK_UP, "C" }, { KEY_CSTICK_DOWN, "C" }, { KEY_CSTICK_LEFT, "C" }, { KEY_CSTICK_RIGHT, "C" },
+#endif
 	};
 	for (u32 i = 0; i < sizeof names / sizeof *names; i++)
 		if (key & names[i].key)
@@ -608,6 +615,29 @@ static void glyph(float x, float cy, u32 key, u32 c)
 		}
 		return;
 	}
+#ifdef SH2VITA
+	// The Vita's face buttons by their symbols in the ring: Cross (A), Circle (B), Triangle (X),
+	// Square (Y), as hid.c maps them
+	if (key & (KEY_A | KEY_B | KEY_X | KEY_Y)) {
+		float cx = x + 7.5f;
+		circle(cx, cy, 7.0f, c);
+		circle(cx, cy, 5.8f, BG);
+		if (key & KEY_A) {
+			line(cx - 2.6f, cy - 2.6f, cx + 2.6f, cy + 2.6f, 1.2f, c);
+			line(cx - 2.6f, cy + 2.6f, cx + 2.6f, cy - 2.6f, 1.2f, c);
+		} else if (key & KEY_B) {
+			circle(cx, cy, 3.2f, c);
+			circle(cx, cy, 2.1f, BG);
+		} else if (key & KEY_X) {
+			line(cx, cy - 3.2f, cx + 3.2f, cy + 2.4f, 1.1f, c);
+			line(cx + 3.2f, cy + 2.4f, cx - 3.2f, cy + 2.4f, 1.1f, c);
+			line(cx - 3.2f, cy + 2.4f, cx, cy - 3.2f, 1.1f, c);
+		} else {
+			outline(cx - 2.7f, cy - 2.7f, cx + 2.7f, cy + 2.7f, c);
+		}
+		return;
+	}
+#endif
 	float w = glyph_width(key), lx, ly;
 	ink_text(FONT_SMALL, x + w * 0.5f, cy, n, c, &lx, &ly);
 	if (!n[1]) {
@@ -1309,8 +1339,28 @@ void touchui_frame(void)
 		s_lang_drawn = ev_language();
 		s_dirty = true;
 	}
+#ifdef SH2VITA
+	// The Vita's one screen: the top screen alone in play, scenes, movies, the map and messages
+	// (the PC has no HUD; every button of the play page is on a Vita button), and the list beside it
+	// whenever there is one to choose from (gfx.c)
+	{
+		static int s_layout = -1;
+		int mm = top_menu();
+		bool list = s_ch.on || mm >= 0 || (!s_movie && s_box_on && s_box[0]) ||
+		            (!s_movie && !s_map_on && s_panel[0]);
+		int layout = s_movie ? VITA_UI_FULL : list ? VITA_UI_SPLIT : VITA_UI_FULL;
+		if (layout != s_layout) {
+			s_layout = layout;
+			vita_ui_layout(layout);
+			s_dirty = true;
+		}
+		if (layout == VITA_UI_FULL || !s_dirty)
+			return;           // the debug page's console is the 3DS's alone: the list is drawn anyway
+	}
+#else
 	if (!s_dirty || s_debug)
 		return;
+#endif
 	s_dirty = false;
 	s_nsolid = s_ntext = s_nhits = s_nimage = s_nimages = 0;
 	backdrop();

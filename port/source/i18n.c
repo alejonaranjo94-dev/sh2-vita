@@ -7,6 +7,19 @@
 typedef struct { const char* en; const char* t[4]; } Entry;
 
 static const Entry TABLE[] = {
+	{ "Circle", { "Rond", "Kreis", "Cerchio", "C\355rculo" } },
+	{ "Cross", { "Croix", "Kreuz", "Croce", "Equis" } },
+	{ "Follows James. The right stick turns it.", { "Suit James. Le stick droit la fait tourner.", "Folgt James. Der rechte Stick dreht sie.", "Segue James. Lo stick destro la ruota.", "Sigue a James. El stick derecho la gira." } },
+	{ "How the left stick steers James.", { "Comment le stick gauche dirige James.", "Wie der linke Stick James lenkt.", "Come lo stick sinistro guida James.", "C\363mo el stick izquierdo gu\355a a James." } },
+	{ "Left stick", { "Stick gauche", "Linker Stick", "Stick sinistro", "Stick izq." } },
+	{ "Push the left stick all the way to run.", { "Poussez le stick gauche \340 fond pour courir.", "Schiebe den linken Stick ganz durch, um zu rennen.", "Spingi del tutto lo stick sinistro per correre.", "Empuja el stick izquierdo a fondo para correr." } },
+	{ "RS-Down", { "SD-Bas", "RS-Unten", "SD-Gi\371", "SD-Abajo" } },
+	{ "RS-Left", { "SD-Gauche", "RS-Links", "SD-Sinistra", "SD-Izquierda" } },
+	{ "RS-Right", { "SD-Droite", "RS-Rechts", "SD-Destra", "SD-Derecha" } },
+	{ "RS-Up", { "SD-Haut", "RS-Oben", "SD-Su", "SD-Arriba" } },
+	{ "Square", { "Carr\351", "Quadrat", "Quadrato", "Cuadrado" } },
+	{ "The right stick turns it", { "Le stick droit la fait tourner", "Der rechte Stick dreht sie", "Lo stick destro la ruota", "El stick derecho la gira" } },
+	{ "Triangle", { "Triangle", "Dreieck", "Triangolo", "Tri\341ngulo" } },
 	{ "\n   The symbols read:  %d  %d  %d  %d", { "\n   Les symboles :  %d  %d  %d  %d", "\n   Die Symbole:  %d  %d  %d  %d", "\n   I simboli:  %d  %d  %d  %d", "\n   Los s\355mbolos:  %d  %d  %d  %d" } },
 	{ "(empty)", { "(vide)", "(leer)", "(vuoto)", "(vac\355o)" } },
 	{ "(nothing left to put)", { "(plus rien \340 poser)", "(nichts mehr abzulegen)", "(nulla da mettere)", "(no queda nada)" } },

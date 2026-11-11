@@ -73,7 +73,11 @@ void opt_defaults(Options* o)
 	o->ps2_flash = o->noise_ps2 = o->ps2_camera = o->cutscene_fov = 1;
 	o->hold_stomp = o->swap_attack = 1;
 	o->msg_top = 1;              // messages are the top screen's (port/UI.md)
+#ifdef SH2VITA
+	o->stereo = 0;               // the Vita's screen is flat
+#else
 	o->stereo = 1;               // 3D follows the slider
+#endif
 	o->control_type = 1;         // Directional Style: the stick points where James goes
 	o->view = 1;                 // View Control Switch: Look is on the D-Pad, under the thumb that steers
 	o->inf_stamina = 1;
@@ -137,6 +141,9 @@ void opt_load(Options* o, const char* path)
 		o->bgm = music > 10 ? 15 : (music * 15 + 5) / 10;
 	if (!se && sound >= 0)
 		o->se = sound > 10 ? 15 : (sound * 15 + 5) / 10;
+#ifdef SH2VITA
+	o->msg_top = 1, o->stereo = 0;   // one flat screen: messages in the PC's window, no 3D
+#endif
 }
 
 void opt_save(const Options* o, const char* path)
@@ -184,8 +191,13 @@ static const char* const CAMSPEED_L[2] = { "The PC's slower turns, which float a
                                            "Quicker, steadier turns, as on the PS2." };
 static const char* const WEAPON_L[2] = { "Hold {AIM} to keep the weapon up. Let go to lower it.",
                                          "Press {AIM} to raise the weapon, and again to lower it." };
+#ifdef SH2VITA
+static const char* const WALKRUN_L[4] = { "James walks. Hold {RUN} to run.", "Press {RUN} to run, until James stops.",
+                                          "Push the left stick all the way to run.", "James runs. Hold {RUN} to walk." };
+#else
 static const char* const WALKRUN_L[4] = { "James walks. Hold {RUN} to run.", "Press {RUN} to run, until James stops.",
                                           "Push the Circle Pad all the way to run.", "James runs. Hold {RUN} to walk." };
+#endif
 static const char* const VIEW_L[2] = { "Hold {LOOK} to look ahead of James.",
                                        "Press {LOOK} to look ahead of James, and again to stop." };
 static const char* const HEAVY_L[2] = { "Every press is heavy, as with a PC key: a downswing or a stomp.",
@@ -264,6 +276,15 @@ static const char* noise_note(const Options* o) { (void)o; return "Brightness Le
 static const char* shadows_note(const Options* o) { return low(o) ? "Low quality turns shadows off." : NULL; }
 static const char* fog_note(const Options* o) { return low(o) ? "Low quality draws half as many particles." : NULL; }
 static bool cleared(void) { return s_host.cleared; }
+// Rows for the 3DS's hardware alone (3D, the second screen, the console and its button layouts)
+#ifdef SH2VITA
+static bool on_3ds(void) { return false; }
+#define ONLY_3DS .shown = on_3ds
+#define STEERS "How the left stick steers James."
+#else
+#define ONLY_3DS .shown = NULL
+#define STEERS "How the Circle Pad steers James."
+#endif
 
 #define AT(field) .off = offsetof(Options, field)
 static const Setting SETTINGS[] = {
@@ -271,7 +292,7 @@ static const Setting SETTINGS[] = {
 	{ .tab = TAB_CONTROLS, .label = -1, .name = "Camera", AT(camera), .hi = 1, .texts = CAMERA, .fig = FIG_CAMERA,
 	  .what = "How the game frames James while you play.", .lines = CAMERA_L, .note = camera_note },
 	{ .tab = TAB_CONTROLS, .label = 84, .name = "Control Type", AT(control_type), .hi = 1, .names = CONTROL_TYPE,
-	  .fig = FIG_MOVEMENT, .what = "How the Circle Pad steers James.", .lines = CONTROL_L, .dim = behind,
+	  .fig = FIG_MOVEMENT, .what = STEERS, .lines = CONTROL_L, .dim = behind,
 	  .note = scripted_note },
 	{ .tab = TAB_CONTROLS, .label = -1, .name = "Camera Speed", AT(ps2_camera), .hi = 1, .texts = PC_PS2,
 	  .what = "How quickly the PC camera turns and settles.", .lines = CAMSPEED_L, .dim = behind,
@@ -304,9 +325,9 @@ static const Setting SETTINGS[] = {
 	{ .tab = TAB_DISPLAY, .label = -1, .name = "Picture", AT(picture), .hi = 1, .texts = PICTURE, .fig = FIG_PICTURE,
 	  .what = "How smooth the picture looks.", .lines = PICTURE_L },
 	{ .tab = TAB_DISPLAY, .label = -1, .name = "3D", AT(stereo), .hi = 1, .texts = OFF_ON_TEXT,
-	  .what = "Depth on the top screen with the 3D slider.", .lines = STEREO_L },
+	  .what = "Depth on the top screen with the 3D slider.", .lines = STEREO_L, ONLY_3DS },
 	{ .tab = TAB_DISPLAY, .label = -1, .name = "Messages", AT(msg_top), .hi = 1, .texts = SCREENS, .fig = FIG_SCREENS,
-	  .what = "Where messages and subtitles appear.", .lines = MESSAGES_L },
+	  .what = "Where messages and subtitles appear.", .lines = MESSAGES_L, ONLY_3DS },
 	{ .tab = TAB_DISPLAY, .label = 97, .name = "Noise Effect", .hi = 2, .names = NOISE, .texts = NOISE_T,
 	  .get = noise_get, .set = noise_set_v, .what = "Film grain over the picture.", .lines = NOISE_L,
 	  .note = noise_note },
@@ -337,9 +358,9 @@ static const Setting SETTINGS[] = {
 	{ .tab = TAB_SYSTEM, .label = -1, .name = "Frame Rate", AT(framerate), .hi = 2, .texts = FRAMES,
 	  .what = "How often the picture is drawn.", .lines = FRAMES_L },
 	{ .tab = TAB_SYSTEM, .label = -1, .name = "Hardware", AT(hwprofile), .hi = 2, .texts = HARDWARE,
-	  .what = "Which console the game tunes itself for.", .lines = HARDWARE_L },
+	  .what = "Which console the game tunes itself for.", .lines = HARDWARE_L, ONLY_3DS },
 	{ .tab = TAB_SYSTEM, .label = -1, .name = "Layout", AT(ctrllayout), .hi = 2, .texts = HARDWARE,
-	  .what = "Which buttons the controls may use.", .lines = LAYOUT_L },
+	  .what = "Which buttons the controls may use.", .lines = LAYOUT_L, ONLY_3DS },
 };
 #define N_SETTINGS ((int)(sizeof SETTINGS / sizeof *SETTINGS))
 static const char* const TABS[TAB_N] = { "Controls", "Game", "Display", "Sound", "System" };
@@ -388,7 +409,11 @@ static const char* expand(const char* src, char* out, size_t n)
 		else if (!strcmp(tok, "LOOK")) key_of(ACT_LOOK, val, sizeof val);
 		else if (!strcmp(tok, "CAMTURN"))   // tpcam.c: the C-Stick on the New 3DS layout, the D-Pad's free directions on the Old
 			snprintf(val, sizeof val, "%s, %s %s %s.",
+#ifdef SH2VITA
+			         tr("The right stick turns it"),
+#else
 			         tr(layout() == CONTROLS_LAYOUT_NEW ? "The C-Stick turns it" : "The D-Pad or a drag turns it"),
+#endif
 			         tr("and"), key_of(ACT_LOOK, key, sizeof key), tr("puts it back"));
 		else if (!strcmp(tok, "AUTOQ")) snprintf(val, sizeof val, "%s", tr(profile_new() ? "High" : "Low"));
 		else if (!strcmp(tok, "AUTOFPS")) snprintf(val, sizeof val, "%d", profile_quality() == QUALITY_LOW ? 30 : 60);

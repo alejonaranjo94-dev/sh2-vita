@@ -1,8 +1,10 @@
 // sh2-vita: the 3DS input API (hid) on the Vita's buttons, sticks and front touch screen.
 //
-// For now the buttons are mapped by position to the 3DS's (Cross = A, Circle = B, ...), so the
-// game's own controls keep working while the port comes up. The PC-style control scheme (map and
-// inventory on their own buttons, as on the PC) replaces this in phase 5.
+// The Vita's buttons stand for the 3DS's by their place and meaning: Cross = A (take), Circle = B
+// (back), Square = Y, Triangle = X, the shoulders L and R, the left stick the Circle Pad, the right
+// stick the C-Stick. What each does in play is controls.c's Vita layout (Cross acts, Square runs,
+// Circle opens the items, Triangle the map ...). The front touch screen taps the menu list where it
+// is drawn on the Vita's screen (gfx.c vita_touch_panel); elsewhere it does nothing.
 #include <3ds.h>
 
 #include <stdlib.h>
@@ -11,10 +13,12 @@
 #include <psp2/ctrl.h>
 #include <psp2/touch.h>
 
+#include "vita_compat.h"
+
 static u32 s_held, s_down, s_up;
 static circlePosition s_cpad, s_cstick;
 static touchPosition s_touch;
-static bool s_init;
+static bool s_init, s_touching;   // s_touching: a finger came down on the list and is still down
 
 static void hid_init(void)
 {
@@ -72,15 +76,23 @@ void hidScanInput(void)
 	if (s_cstick.dy > 40) k |= KEY_CSTICK_UP;
 	if (s_cstick.dy < -40) k |= KEY_CSTICK_DOWN;
 
-	// The front touch screen stands in for the 3DS's touch screen (320x240) until phase 5.
+	// The front touch screen (1920 x 1088) on the list as the 3DS touch screen: a finger that came
+	// down on it stays on it (clamped to its edge) until lifted, as a drag on the 3DS would.
 	SceTouchData touch;
 	memset(&touch, 0, sizeof touch);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
+	bool on = false;
 	if (touch.reportNum > 0) {
-		k |= KEY_TOUCH;
-		s_touch.px = (u16)(touch.report[0].x * 320 / 1920);
-		s_touch.py = (u16)(touch.report[0].y * 240 / 1088);
+		u16 px, py;
+		int sx = touch.report[0].x * VITA_SCREEN_W / 1920, sy = touch.report[0].y * VITA_SCREEN_H / 1088;
+		if (vita_touch_panel(sx, sy, s_touching, &px, &py)) {
+			on = true;
+			s_touch.px = px, s_touch.py = py;
+		}
 	}
+	s_touching = on;
+	if (on)
+		k |= KEY_TOUCH;
 
 	s_down = k & ~s_held;
 	s_up = s_held & ~k;

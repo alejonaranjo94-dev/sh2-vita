@@ -273,10 +273,41 @@ void fig_ring(float cx, float cy, const char* label, u32 rgba)
 {
 	if (!label || !*label)
 		return;
+#ifdef SH2VITA
+	// a Vita face button (controls.c's names, in English or translated): its symbol in the ring
+	static const char* const SHAPES[4] = { "Cross", "Circle", "Triangle", "Square" };
+	int shape = 0;
+	for (int i = 0; i < 4 && !shape; i++)
+		if (!strcmp(label, SHAPES[i]) || !strcmp(label, tr(SHAPES[i])))
+			shape = i + 1;
+#endif
 	label = tr(label);
 	float ox = s_ox, oy = s_oy, fa = s_fa;
 	s_ox = s_oy = 0.0f, s_fa = (rgba & 0xff) / 255.0f;
 	u32 c = rgba | 0xff;
+#ifdef SH2VITA
+	if (shape) {
+		const float k = 2.8f;
+		circ(cx, cy, 6.5f, c);
+		if (shape == 1) {
+			seg(cx - k, cy - k, cx + k, cy + k, 1.0f, c);
+			seg(cx - k, cy + k, cx + k, cy - k, 1.0f, c);
+		} else if (shape == 2) {
+			circ(cx, cy, 3.0f, c);
+		} else if (shape == 3) {
+			seg(cx, cy - k - 0.4f, cx + k + 0.4f, cy + k - 0.6f, 1.0f, c);
+			seg(cx + k + 0.4f, cy + k - 0.6f, cx - k - 0.4f, cy + k - 0.6f, 1.0f, c);
+			seg(cx - k - 0.4f, cy + k - 0.6f, cx, cy - k - 0.4f, 1.0f, c);
+		} else {
+			seg(cx - k, cy - k, cx + k, cy - k, 1.0f, c);
+			seg(cx + k, cy - k, cx + k, cy + k, 1.0f, c);
+			seg(cx + k, cy + k, cx - k, cy + k, 1.0f, c);
+			seg(cx - k, cy + k, cx - k, cy - k, 1.0f, c);
+		}
+		s_ox = ox, s_oy = oy, s_fa = fa;
+		return;
+	}
+#endif
 	float w = font_width_px(FONT_SMALL, label);
 	if (strlen(label) > 1) {
 		// a pill round the name: half circles at the ends, clear of the letters
