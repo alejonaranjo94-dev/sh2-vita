@@ -143,8 +143,8 @@ void opt_load(Options* o, const char* path)
 		o->se = sound > 10 ? 15 : (sound * 15 + 5) / 10;
 #ifdef SH2VITA
 	o->msg_top = 1, o->stereo = 0;   // one flat screen: messages in the PC's window, no 3D
-	if (o->speaker > SPEAKER_HI)
-		o->speaker = SPEAKER_HI;
+	if (o->speaker > 1)
+		o->speaker = 1;                  // Stereo: the Vita's mixer has no surround
 #endif
 }
 
