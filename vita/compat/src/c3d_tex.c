@@ -119,6 +119,23 @@ static void decode_etc1(const u8* src, u8* rgba, int w, int h, bool alpha)
 			}
 }
 
+// ETC1 as the Vita's GPU reads it (glCompressedTexImage2D, GL_ETC1_RGB8_OES): 4x4 blocks row by
+// row, each 64-bit block big endian. The 3DS keeps the same blocks little endian, four to an 8x8
+// tile in Z-order, tiles row by row. Rows stay in memory order, as for every other format.
+static void etc1_to_standard(const u8* src, u8* dst, int w, int h)
+{
+	int bw = w / 4;
+	for (int ty = 0; ty < h; ty += 8)
+		for (int tx = 0; tx < w; tx += 8)
+			for (int b = 0; b < 4; b++) {
+				int bx = (tx >> 2) + (b & 1), by = (ty >> 2) + (b >> 1);
+				u8* o = dst + ((size_t)by * bw + bx) * 8;
+				for (int i = 0; i < 8; i++)
+					o[i] = src[7 - i];
+				src += 8;
+			}
+}
+
 // Other formats -> (GL format, GL type, pixels), rows in memory order.
 static void* decode_level(const C3D_Tex* t, const u8* src, int w, int h, GLenum* gl_fmt, GLenum* gl_type)
 {
@@ -213,6 +230,18 @@ static void upload(C3D_Tex* t)
 		int w = t->width >> lv, h = t->height >> lv;
 		if (w < 8 || h < 8)
 			break;
+		if (t->fmt == GPU_ETC1) {
+			// straight to the GPU, still compressed: no decoding, an eighth of RGBA8's memory
+			u32 bytes = (u32)w * h / 2;
+			u8* blocks = malloc(bytes);
+			if (blocks) {
+				etc1_to_standard(src, blocks, w, h);
+				glCompressedTexImage2D(GL_TEXTURE_2D, lv, GL_ETC1_RGB8_OES, w, h, 0, bytes, blocks);
+				free(blocks);
+			}
+			src += level_size(t, lv);
+			continue;
+		}
 		GLenum fmt, type;
 		void* px = decode_level(t, src, w, h, &fmt, &type);
 		if (px) {
@@ -251,6 +280,21 @@ static void reg_remove(C3D_Tex* t)
 	for (int i = 0; i < MAX_TEX; i++)
 		if (s_live[i] == t)
 			s_live[i] = NULL;
+}
+
+// GSPGPU_FlushDataCache: the game wrote pixels into a texture's memory (the movie player's
+// frames); the texture goes to the GPU again before its next use.
+void c3d_tex_mark_written(const void* adr, u32 size)
+{
+	const u8* a = adr;
+	for (int i = 0; i < MAX_TEX; i++) {
+		C3D_Tex* t = s_live[i];
+		if (!t || !t->data || t->gl_rt)
+			continue;
+		const u8* d = t->data;
+		if (a < d + t->size && a + size > d)
+			t->gl_dirty = 1;
+	}
 }
 
 C3D_Tex* c3d_tex_find_by_data(const void* data)

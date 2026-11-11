@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
+
 // ======================================================================= the embedded shader tags
 #define TAG(name, id) const u8 name##_shbin[12] __attribute__((aligned(4))) = { 'S', 'H', '2', 'V', 'S', 'H', 'B', 'N', id, 0, 0, 0 }; \
 	const u32 name##_shbin_size = 12;
@@ -204,6 +207,10 @@ typedef struct {
 	GLint u_pt_rows, u_pt_offset;
 	GLint u_scene_amb, u_lpos, u_ldiff, u_lamb, u_lspec, u_lspot, u_lda, u_lrows, u_d0_row;
 	bool failed;
+	// the uniform registers last sent to this program: sent again only when they change
+	bool c_valid;
+	float last_c[C3D_FVUNIF_COUNT][4];
+	float last_depth[2];
 } Program;
 
 #define MAX_PROGRAMS 512
@@ -551,6 +558,70 @@ static GLuint compile(GLenum type, const char* a, const char* b)
 	return sh;
 }
 
+// One compiled vertex shader per shbin, shared by every program built on it.
+static GLuint s_vs[SHBIN_COUNT];
+
+// Linked programs are kept on the card (ux0:data/sh2vita/shadercache/<hash>.bin) as vitaGL's
+// program binaries: compiling a shader on the Vita takes 0.4 to 5 seconds, loading one a few ms.
+// The hash covers both sources, so a changed shader gets a new file.
+#define CACHE_DIR VITA_DATA_DIR "/shadercache"
+#define CACHE_VERSION "sh2vita-shader-1"
+static u8* s_bin_buf;
+#define BIN_BUF_SIZE (1024 * 1024)
+
+static u64 fnv64(u64 h, const char* s)
+{
+	while (s && *s)
+		h = (h ^ (u8)*s++) * 0x100000001B3ull;
+	return h;
+}
+
+static bool cache_load(GLuint prog, u64 hash)
+{
+	char path[96];
+	snprintf(path, sizeof path, CACHE_DIR "/%016llx.bin", (unsigned long long)hash);
+	SceUID fd = sceIoOpen(path, SCE_O_RDONLY, 0);
+	if (fd < 0)
+		return false;
+	SceOff size = sceIoLseek(fd, 0, SCE_SEEK_END);
+	sceIoLseek(fd, 0, SCE_SEEK_SET);
+	bool ok = false;
+	void* buf = size > 0 && size < BIN_BUF_SIZE ? malloc((size_t)size) : NULL;
+	if (buf && sceIoRead(fd, buf, (SceSize)size) == (int)size) {
+		glProgramBinary(prog, 0, buf, (GLsizei)size);
+		GLint linked = 0;
+		glGetProgramiv(prog, GL_LINK_STATUS, &linked);
+		ok = linked != 0;
+	}
+	free(buf);
+	sceIoClose(fd);
+	if (!ok)
+		sceIoRemove(path);
+	return ok;
+}
+
+static void cache_save(GLuint prog, u64 hash)
+{
+	if (!s_bin_buf) {
+		sceIoMkdir(CACHE_DIR, 0777);
+		s_bin_buf = malloc(BIN_BUF_SIZE);
+		if (!s_bin_buf)
+			return;
+	}
+	GLsizei len = 0;
+	GLenum fmt = 0;
+	glGetProgramBinary(prog, BIN_BUF_SIZE, &len, &fmt, s_bin_buf);
+	if (len <= 0 || len > BIN_BUF_SIZE)
+		return;
+	char path[96];
+	snprintf(path, sizeof path, CACHE_DIR "/%016llx.bin", (unsigned long long)hash);
+	SceUID fd = sceIoOpen(path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+	if (fd < 0)
+		return;
+	sceIoWrite(fd, s_bin_buf, (SceSize)len);
+	sceIoClose(fd);
+}
+
 static Program* build_one(const FragKey* k, u32 h);
 static Program* build(const FragKey* k, u32 h)
 {
@@ -577,20 +648,26 @@ static Program* build_one(const FragKey* k, u32 h)
 
 	char* fs = gen_fragment(k);
 	int id = k->shbin > 0 && k->shbin < SHBIN_COUNT ? k->shbin : SHBIN_WORLD;
-	GLuint vs_sh = compile(GL_VERTEX_SHADER, VS_COMMON, VS_BODY[id]);
-	GLuint fs_sh = compile(GL_FRAGMENT_SHADER, fs, NULL);
+	u64 hash = fnv64(fnv64(fnv64(fnv64(0xcbf29ce484222325ull, CACHE_VERSION), VS_COMMON), VS_BODY[id]), fs);
 	p->prog = glCreateProgram();
-	glAttachShader(p->prog, vs_sh);
-	glAttachShader(p->prog, fs_sh);
-	static const char* ATTR[5] = { "a_v0", "a_v1", "a_v2", "a_v3", "a_v4" };
-	for (int i = 0; i < 5; i++)
-		glBindAttribLocation(p->prog, i, ATTR[i]);
-	glLinkProgram(p->prog);
-	GLint ok = 0;
-	glGetProgramiv(p->prog, GL_LINK_STATUS, &ok);
-	if (!ok) {
-		vita_log("shader link failed (program %d); fragment source:\n%s", id, fs);
-		p->failed = true;
+	if (!cache_load(p->prog, hash)) {
+		if (!s_vs[id])
+			s_vs[id] = compile(GL_VERTEX_SHADER, VS_COMMON, VS_BODY[id]);
+		GLuint fs_sh = compile(GL_FRAGMENT_SHADER, fs, NULL);
+		glAttachShader(p->prog, s_vs[id]);
+		glAttachShader(p->prog, fs_sh);
+		static const char* ATTR[5] = { "a_v0", "a_v1", "a_v2", "a_v3", "a_v4" };
+		for (int i = 0; i < 5; i++)
+			glBindAttribLocation(p->prog, i, ATTR[i]);
+		glLinkProgram(p->prog);
+		GLint ok = 0;
+		glGetProgramiv(p->prog, GL_LINK_STATUS, &ok);
+		if (!ok) {
+			vita_log("shader link failed (program %d); fragment source:\n%s", id, fs);
+			p->failed = true;
+		} else {
+			cache_save(p->prog, hash);
+		}
 	}
 	free(fs);
 
@@ -828,6 +905,10 @@ static void apply_fixed_function(void)
 	}
 }
 
+// The first vertex the draw uses: the attribute pointers start there, so vitaGL copies only the
+// vertices the draw reads (it copies from the pointer up to the highest index).
+static u32 s_base_vertex;
+
 static void bind_vertex_input(void)
 {
 	static const GLenum TYPE[4] = { GL_BYTE, GL_UNSIGNED_BYTE, GL_SHORT, GL_FLOAT };
@@ -853,7 +934,8 @@ static void bind_vertex_input(void)
 			off = (off + esz - 1) / esz * esz;   // each attribute aligned to its element size
 			if (reg < 5) {
 				glEnableVertexAttribArray(reg);
-				glVertexAttribPointer(reg, cnt, TYPE[fmt], GL_FALSE, bi->stride[b], base + off);
+				glVertexAttribPointer(reg, cnt, TYPE[fmt], GL_FALSE, bi->stride[b],
+				                      base + off + (size_t)s_base_vertex * bi->stride[b]);
 				loaded |= (u16)(1u << reg);
 			}
 			off += esz * cnt;
@@ -883,9 +965,16 @@ static bool prepare(void)
 		const C3D_FVec* v = &C3D_FVUnif[GPU_VERTEX_SHADER][i];
 		regs[i][0] = v->x; regs[i][1] = v->y; regs[i][2] = v->z; regs[i][3] = v->w;
 	}
-	glUniform4fv(p->u_c, C3D_FVUNIF_COUNT, &regs[0][0]);
 	float depth[2] = { 2.0f * g_c3d.z_scale, 2.0f * g_c3d.z_offset - 1.0f };
-	glUniform2fv(p->u_depth, 1, depth);
+	if (!p->c_valid || memcmp(p->last_c, regs, sizeof regs)) {
+		glUniform4fv(p->u_c, C3D_FVUNIF_COUNT, &regs[0][0]);
+		memcpy(p->last_c, regs, sizeof regs);
+	}
+	if (!p->c_valid || memcmp(p->last_depth, depth, sizeof depth)) {
+		glUniform2fv(p->u_depth, 1, depth);
+		memcpy(p->last_depth, depth, sizeof depth);
+	}
+	p->c_valid = true;
 
 	// texture units 0-2, and the LUT atlas on unit 3
 	for (int u = 0; u < 3; u++) {
@@ -924,18 +1013,58 @@ static GLenum gl_prim(GPU_Primitive_t p)
 void C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size)
 {
 	g_c3d_stats.draws++;
-	if (size <= 0 || !prepare())
+	if (size <= 0)
 		return;
-	glDrawArrays(gl_prim(primitive), first, size);
+	s_base_vertex = first > 0 ? (u32)first : 0;
+	bool ok = prepare();
+	s_base_vertex = 0;
+	if (ok)
+		glDrawArrays(gl_prim(primitive), 0, size);
 }
+
+// The indices rebased to the lowest one, which becomes the base vertex: a room draws its batches
+// from one big vertex buffer, and without this vitaGL copied it from its start every draw.
+static u16* s_idx;
+static int s_idx_cap;
 
 void C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices)
 {
 	g_c3d_stats.draws++;
-	if (count <= 0 || !prepare())
+	if (count <= 0)
+		return;
+	if (count > s_idx_cap) {
+		u16* n = realloc(s_idx, (size_t)count * 2 * sizeof(u16));
+		if (!n)
+			return;
+		s_idx = n, s_idx_cap = count * 2;
+	}
+	u32 lo = 0xFFFF, hi = 0;
+	if (type == C3D_UNSIGNED_SHORT) {
+		const u16* in = indices;
+		for (int i = 0; i < count; i++) {
+			u32 v = in[i];
+			if (v < lo) lo = v;
+			if (v > hi) hi = v;
+		}
+		for (int i = 0; i < count; i++)
+			s_idx[i] = (u16)(in[i] - lo);
+	} else {
+		const u8* in = indices;
+		for (int i = 0; i < count; i++) {
+			u32 v = in[i];
+			if (v < lo) lo = v;
+			if (v > hi) hi = v;
+		}
+		for (int i = 0; i < count; i++)
+			s_idx[i] = (u16)(in[i] - lo);
+	}
+	s_base_vertex = lo;
+	bool ok = prepare();
+	s_base_vertex = 0;
+	if (!ok)
 		return;
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glDrawElements(gl_prim(primitive), count, type == C3D_UNSIGNED_SHORT ? GL_UNSIGNED_SHORT : GL_UNSIGNED_BYTE, indices);
+	glDrawRangeElements(gl_prim(primitive), 0, hi - lo, count, GL_UNSIGNED_SHORT, s_idx);
 }
 
 void C3D_ImmDrawBegin(GPU_Primitive_t primitive) { (void)primitive; vita_log("C3D_ImmDrawBegin: not implemented"); }

@@ -141,7 +141,12 @@ void* vramAlloc(size_t size) { return memalign(0x80, size); }
 void vramFree(void* mem) { free(mem); }
 u32 vramSpaceFree(void) { return 32 * 1024 * 1024; }
 Result DSP_FlushDataCache(const void* address, u32 size) { (void)address; (void)size; return 0; }
-Result GSPGPU_FlushDataCache(const void* adr, u32 size) { (void)adr; (void)size; return 0; }
+void c3d_tex_mark_written(const void* adr, u32 size);   // c3d_tex.c
+Result GSPGPU_FlushDataCache(const void* adr, u32 size)
+{
+	c3d_tex_mark_written(adr, size);
+	return 0;
+}
 Result GSPGPU_InvalidateDataCache(const void* adr, u32 size) { (void)adr; (void)size; return 0; }
 
 // ---- threads ------------------------------------------------------------------------------------
