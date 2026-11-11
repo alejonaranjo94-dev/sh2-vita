@@ -4014,6 +4014,10 @@ static void new_game(void)
 	combat_reset();
 	enemy_killed_reset();
 	prog_new_game(s_riddle, s_action);     // FlagInit: difficulty flags, puzzle answers
+	// James starts with Mary's photo and her letter (0x495650: ItemGet(20), ItemGet(21) once, as a
+	// game of his begins); the hotel takes the letter again (EvProgTriheadBattle)
+	ev_give_item(20, 1);
+	ev_give_item(21, 1);
 	memset(&s_warp, 0, sizeof s_warp);
 	s_warp.kind = EV_WARP;
 	s_warp.stage = 2;
@@ -4153,6 +4157,13 @@ static bool continue_game(void)
 	ev_state_set(sv.events);
 	if (sv.version >= 3)
 		prog_state_set(sv.prog);
+	// A James save from before the port gave Mary's photo and letter has neither: give them back
+	// (the letter only before the hotel's back world, stage 44, where the game takes it)
+	if (prog_chapter() != 1 && !ev_item_count(20) && !ev_item_count(21)) {
+		ev_give_item(20, 1);
+		if (sv.stage < 44)
+			ev_give_item(21, 1);
+	}
 	if (sv.version >= 7)
 		prog_boat_set(sv.boat);
 	boat_reset();

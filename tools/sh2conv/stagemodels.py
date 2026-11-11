@@ -46,6 +46,12 @@ INIT_MODELS = [(48, 0x517, 0x7b4054, 0x7b4064, 505), (49, 0x517, 0x7b4c64, 0x7b4
                (50, 0x517, 0x7b333c, 0x7b334c, 505), (51, 0x517, 0x8c9804, 0x8c9814, 505)]
 ITEM_KINDS, N_ITEMS = 0x892640, 86
 PICKUP_TABLE, N_PICKUPS = 0x88d2b8, 7     # {s32 kind, file record}: the drinks, kits and rounds
+# Items whose kind has no file in either table but whose model is in data/chr/item under its own
+# name (the PC game's item menu shows them turning like the others): the plank, the radio, Mary's
+# photo and letter, the clock and bronze keys, the hair and the two eggs. Matched by name, a port
+# choice; the files are the player's own (missing ones are skipped).
+ITEM_MODELS_BY_NAME = {13: 'x_kakuzai', 19: 'x_radio', 20: 'x_pictstand', 21: 'x_letterm', 28: 'x_keyclock',
+                       40: 'x_keybronze', 53: 'x_hair', 72: 'x_eggrust', 73: 'x_eggred'}
 
 
 def model_table(exe):
@@ -106,7 +112,9 @@ def main():
     for item in range(1, N_ITEMS):
         kind = struct.unpack('<H', exe.read(ITEM_KINDS + 2 * item, 2))[0]
         path = table.get(kind)
-        if not kind or not path or not path.startswith(('data/chr/', 'data/chr2/')):
+        if (not path or not path.startswith(('data/chr/', 'data/chr2/'))) and item in ITEM_MODELS_BY_NAME:
+            path = 'data/chr/item/%s.mdl' % ITEM_MODELS_BY_NAME[item]
+        if (not kind and item not in ITEM_MODELS_BY_NAME) or not path or not path.startswith(('data/chr/', 'data/chr2/')):
             continue
         dc = path.startswith('data/chr2/')
         sub = path[len('data/chr2/' if dc else 'data/chr/'):]

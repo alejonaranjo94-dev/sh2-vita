@@ -825,6 +825,23 @@ static void draw_menu(int id)
 		top = wrapped_title(m->title);
 	else
 		header(m->title);
+#ifdef SH2VITA
+	// The item screen shows James' condition, as the PC's does (the Vita has no play page for it):
+	// the heartbeat line in the condition's colour and its word, on one line under the title
+	if (id == TOUI_ITEMS) {
+		static const char* const word[3] = { "Fine", "Caution", "Danger" };
+		static const u32 col[3] = { 0x40d040ff, 0xe0c030ff, 0xe03020ff };
+		static const float beat[] = { 0, 0, 0.1f, -0.15f, 0.1f, 0, 0, 0.05f, -0.9f, 0.7f, -0.1f, 0, 0.12f, 0.18f, 0.08f, 0, 0 };
+		const int nb = (int)(sizeof beat / sizeof *beat);
+		int c = s_cond < 0 ? 0 : s_cond;
+		float cy = top + 9.0f, amp = c == 0 ? 8.0f : c == 1 ? 6.0f : 4.0f, step = 70.0f / (nb - 1);
+		label(14, cy - font_line_px(FONT_SMALL) * 0.5f, "Condition", FONT_LEFT);
+		for (int i = 0; i + 1 < nb; i++)
+			line(104 + i * step, cy + beat[i] * amp, 104 + (i + 1) * step, cy + beat[i + 1] * amp, 1.2f, col[c]);
+		text(FONT_SMALL, 184, cy - font_line_px(FONT_SMALL) * 0.5f, word[c], FONT_LEFT, col[c], col[c]);
+		top += 20.0f;
+	}
+#endif
 	int sel = m->sel ? *m->sel : -1;
 	float right = 312;
 	float bottom = m->nb ? FOOT_Y - 4 : 234.0f;
@@ -1348,6 +1365,12 @@ void touchui_frame(void)
 	{
 		static int s_layout = -1;
 		int mm = top_menu();
+		if (s_menus[TOUI_ITEMS].on) {        // the item screen's condition line (draw_menu)
+			float hp = combat_hp(), max = combat_hp_max();
+			int cond = hp > 0.7f * max ? 0 : hp > 0.35f * max ? 1 : 2;
+			if (cond != s_cond)
+				s_cond = cond, s_dirty = true;
+		}
 		bool list = s_ch.on || mm >= 0 || (!s_movie && s_box_on && s_box[0]) ||
 		            (!s_movie && !s_map_on && s_panel[0]);
 		int layout = s_movie ? VITA_UI_FULL : list ? VITA_UI_SPLIT : VITA_UI_FULL;
