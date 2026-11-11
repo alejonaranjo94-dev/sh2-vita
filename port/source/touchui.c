@@ -565,10 +565,12 @@ static const char* key_name(u32 key)
 {
 	static const struct { u32 key; const char* name; } names[] = {
 		{ KEY_A, "A" }, { KEY_B, "B" }, { KEY_X, "X" }, { KEY_Y, "Y" }, { KEY_L, "L" }, { KEY_R, "R" },
-		{ KEY_ZL, "ZL" }, { KEY_ZR, "ZR" }, { KEY_START, "START" }, { KEY_SELECT, "SELECT" },
+		{ KEY_START, "START" }, { KEY_SELECT, "SELECT" },
 #ifdef SH2VITA
+		{ KEY_ZL, "L2" }, { KEY_ZR, "R2" },
 		{ KEY_CSTICK_UP, "RS" }, { KEY_CSTICK_DOWN, "RS" }, { KEY_CSTICK_LEFT, "RS" }, { KEY_CSTICK_RIGHT, "RS" },
 #else
+		{ KEY_ZL, "ZL" }, { KEY_ZR, "ZR" },
 		{ KEY_CSTICK_UP, "C" }, { KEY_CSTICK_DOWN, "C" }, { KEY_CSTICK_LEFT, "C" }, { KEY_CSTICK_RIGHT, "C" },
 #endif
 	};

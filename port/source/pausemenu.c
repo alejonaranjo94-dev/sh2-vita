@@ -93,7 +93,7 @@ int pausemenu_update(u32 down)
 	}
 	if (s_touch_sel != s_sel && s_touch_sel >= 0 && s_touch_sel < 7)
 		s_sel = s_touch_sel;
-	if (down & (KEY_START | KEY_B)) {
+	if (down & (KEY_START | KEY_B | KEY_SELECT)) {   // SELECT: the Vita's pause button (the PS2's)
 		sfx_play(SFX_MENU_CANCEL, 1.0f, 0.0f);
 		return PM_RESUME;
 	}

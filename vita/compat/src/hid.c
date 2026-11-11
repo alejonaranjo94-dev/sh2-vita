@@ -24,6 +24,7 @@ static void hid_init(void)
 {
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
 	sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+	sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
 	s_init = true;
 }
 
@@ -93,6 +94,20 @@ void hidScanInput(void)
 	s_touching = on;
 	if (on)
 		k |= KEY_TOUCH;
+
+	// The rear touch pad's upper outer corners, under the index fingers' reach, are the PS2's L2 and
+	// R2 (ZL and ZR: the side steps by default, both together a quick turn). The middle and the
+	// lower half, where the hands rest, do nothing.
+	SceTouchData rear;
+	memset(&rear, 0, sizeof rear);
+	sceTouchPeek(SCE_TOUCH_PORT_BACK, &rear, 1);
+	for (int i = 0; i < rear.reportNum && i < 4; i++) {
+		int x = rear.report[i].x, y = rear.report[i].y;   // 0..1919, about 108..889
+		if (y > 500)
+			continue;
+		if (x < 640) k |= KEY_ZL;
+		else if (x >= 1280) k |= KEY_ZR;
+	}
 
 	s_down = k & ~s_held;
 	s_up = s_held & ~k;

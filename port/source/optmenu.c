@@ -143,6 +143,8 @@ void opt_load(Options* o, const char* path)
 		o->se = sound > 10 ? 15 : (sound * 15 + 5) / 10;
 #ifdef SH2VITA
 	o->msg_top = 1, o->stereo = 0;   // one flat screen: messages in the PC's window, no 3D
+	if (o->speaker > SPEAKER_HI)
+		o->speaker = SPEAKER_HI;
 #endif
 }
 
@@ -281,9 +283,13 @@ static bool cleared(void) { return s_host.cleared; }
 static bool on_3ds(void) { return false; }
 #define ONLY_3DS .shown = on_3ds
 #define STEERS "How the left stick steers James."
+#define FILLS "How scenes fill the wide screen."
+#define SPEAKER_HI 1                     // no surround mix on the Vita (vita/compat/src/ndsp.c)
 #else
 #define ONLY_3DS .shown = NULL
 #define STEERS "How the Circle Pad steers James."
+#define FILLS "How scenes fill the wide top screen."
+#define SPEAKER_HI 2
 #endif
 
 #define AT(field) .off = offsetof(Options, field)
@@ -334,7 +340,7 @@ static const Setting SETTINGS[] = {
 	{ .tab = TAB_DISPLAY, .label = -1, .name = "Flashlight", AT(ps2_flash), .hi = 1, .texts = PC_PS2, .fig = FIG_BEAM,
 	  .what = "How James' flashlight lights a room.", .lines = FLASH_L },
 	{ .tab = TAB_DISPLAY, .label = -1, .name = "Cutscene View", AT(cutscene_fov), .hi = 1, .texts = FRAMING,
-	  .fig = FIG_FRAMING, .what = "How scenes fill the wide top screen.", .lines = CUTFOV_L },
+	  .fig = FIG_FRAMING, .what = FILLS, .lines = CUTFOV_L },
 	{ .tab = TAB_DISPLAY, .label = 175, .name = "Shadows", AT(shadows), .hi = 1, .names = OFF_ON,
 	  .what = "Shadows that characters cast from the lights.", .lines = SHADOWS_L, .dim = low, .note = shadows_note },
 	{ .tab = TAB_DISPLAY, .label = 178, .name = "Fog", AT(fog), .hi = 1, .names = FOG,
@@ -344,7 +350,7 @@ static const Setting SETTINGS[] = {
 	// Sound
 	{ .tab = TAB_SOUND, .label = 74, .name = "Subtitles", AT(subtitles), .hi = 1, .names = OFF_ON,
 	  .what = "Spoken lines written out on screen.", .lines = SUBS_L },
-	{ .tab = TAB_SOUND, .label = 34, .name = "Speaker Config.", AT(speaker), .hi = 2, .names = SPEAKER,
+	{ .tab = TAB_SOUND, .label = 34, .name = "Speaker Config.", AT(speaker), .hi = SPEAKER_HI, .names = SPEAKER,
 	  .what = "How sound is mixed for the speakers.", .lines = SPEAKER_L },
 	{ .tab = TAB_SOUND, .kind = K_BAR, .label = 40, .name = "BGM Volume", AT(bgm), .hi = 15,
 	  .what = "Music and ambient sound." },

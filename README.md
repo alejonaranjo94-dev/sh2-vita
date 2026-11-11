@@ -39,18 +39,23 @@ Settings, saves and `log.txt` are kept in `ux0:data/sh2vita/`. A `debug.txt` the
 
 ## Controls
 
+As close to the PS2's defaults as the Vita allows (the PS2's R2 is R, its L2 is L, and its L1 / R1
+are the rear touch pad's upper corners):
+
 | Button | In play |
 | --- | --- |
 | Left stick | Move |
 | Right stick | Camera (Behind camera); next target while aiming |
 | Cross | Check, open, pick up; attack while aiming |
 | Square (hold) | Run |
-| Circle | Items (Circle closes them) |
-| Triangle | Map (Triangle or Circle closes it) |
+| Circle | Flashlight |
+| Triangle | Map |
+| START | Items; skip a scene |
+| SELECT | Pause |
 | R (hold) | Aim |
-| L | Quick turn |
-| D-Pad up / down / left / right | Look, next weapon, quick heal, flashlight |
-| START | Pause |
+| L | View behind James |
+| Rear pad, upper left / right | Side step left / right; both: quick turn |
+| D-Pad down / left | Next weapon, quick heal |
 
 In menus Cross takes, Circle goes back and the D-Pad or the left stick moves; the front touch screen
 taps the list. Every action can be rebound in Options, Controls, Buttons. More in

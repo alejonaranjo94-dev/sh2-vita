@@ -7,6 +7,7 @@
 typedef struct { const char* en; const char* t[4]; } Entry;
 
 static const Entry TABLE[] = {
+	{ "How scenes fill the wide screen.", { "Comment les scènes remplissent l'écran large.", "Wie Szenen den breiten Bildschirm füllen.", "Come le scene riempiono lo schermo largo.", "Cómo llenan las escenas la pantalla ancha." } },
 	{ "Circle", { "Rond", "Kreis", "Cerchio", "C\355rculo" } },
 	{ "Cross", { "Croix", "Kreuz", "Croce", "Equis" } },
 	{ "Follows James. The right stick turns it.", { "Suit James. Le stick droit la fait tourner.", "Folgt James. Der rechte Stick dreht sie.", "Segue James. Lo stick destro la ruota.", "Sigue a James. El stick derecho la gira." } },

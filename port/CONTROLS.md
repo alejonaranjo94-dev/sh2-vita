@@ -232,28 +232,32 @@ of the .cam data, the boat and the viewer keep the PC camera.
 
 ## PS Vita
 
-The Vita build (`SH2VITA`) has one layout of its own (`controls_default`), in the PS2's way. The
-Vita's buttons reach the game as the 3DS's by place and meaning (`vita/compat/src/hid.c`: Cross = A,
-Circle = B, Square = Y, Triangle = X, the left stick the Circle Pad, the right stick the C-Stick).
+The Vita build (`SH2VITA`) has one layout of its own (`controls_default`), as close to the PS2's
+defaults as the Vita's buttons allow. The Vita's buttons reach the game as the 3DS's by place and
+meaning (`vita/compat/src/hid.c`: Cross = A, Circle = B, Square = Y, Triangle = X, the left stick the
+Circle Pad, the right stick the C-Stick, the rear touch pad's upper outer corners ZL and ZR, named
+L2 and R2).
 
-| Action | PS Vita |
-| --- | --- |
-| Move | left stick |
-| Action (check, open, pick up; attack while aiming) | Cross |
-| Run (hold) | Square |
-| Items | Circle (Circle backs out again) |
-| Map | Triangle (Triangle or Circle puts it away) |
-| Aim (hold) | R |
-| Quick turn | L |
-| Look | D-Pad up |
-| Next weapon | D-Pad down |
-| Quick heal | D-Pad left |
-| Flashlight | D-Pad right |
-| Behind camera; target left / right while aiming | right stick |
-| Strafe left / right | none (bindable) |
-| Pause | START |
+| Action | PS2 | PS Vita |
+| --- | --- | --- |
+| Move | left stick | left stick |
+| Action (check, open, attack while aiming) | Cross | Cross |
+| Run (hold) | Square | Square |
+| Flashlight | Circle | Circle |
+| Map | Triangle | Triangle (Triangle or Circle puts it away) |
+| Items | START | START (START or Circle closes them) |
+| Pause | SELECT | SELECT |
+| Aim (hold) | R2 | R |
+| View behind James (Look) | L2 | L |
+| Side step left / right | L1 / R1 | rear pad upper left / right (L2 / R2) |
+| Quick turn | L1 + R1 | both rear corners |
+| Next target while aiming | - | right stick |
+| Next weapon, quick heal | - (item screen) | D-Pad down, D-Pad left (the port's extras) |
+| Skip a scene | START | START |
 
 Menus keep their keys: Cross takes, Circle goes back, the D-Pad or the left stick moves. Every action
-can be rebound on the Buttons page as on the 3DS (no ZL or ZR to offer); the Options' Layout,
-Hardware, 3D and Messages rows are the 3DS's alone and not shown. Prompts draw the PlayStation
-symbols in their rings, and texts name the buttons Cross, Circle, Square and Triangle.
+can be rebound on the Buttons page as on the 3DS. The Options' Layout, Hardware, 3D and Messages rows
+are the 3DS's alone and not shown, Speaker Config. offers Mono and Stereo (the Vita's mixer has no
+surround), and SELECT twice no longer opens the debug page (`debughud 1` in `debug.txt` does).
+Prompts draw the PlayStation symbols in their rings, and texts name the buttons Cross, Circle,
+Square and Triangle.

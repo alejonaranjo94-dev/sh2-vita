@@ -1041,7 +1041,7 @@ static bool inventory_update(u32 down)
 	}
 	int items[64];
 	int n = inv_list(items, 64);
-	if (down & (KEY_Y | KEY_B)) {
+	if (down & (KEY_Y | KEY_B | (controls_keys(ACT_ITEMS) & (KEY_START | KEY_SELECT)))) {   // and START on the Vita (the PS2's)
 		sfx_play(SFX_MENU_CANCEL, 1.0f, 0.0f);
 		s_inv_open = false;
 		s_inv_dirty = true;
@@ -4567,7 +4567,7 @@ static bool pause_update(u32 down)
 		return true;
 	}
 	if (!s_paused) {
-		if ((down & KEY_START) && !s_msg_page && !s_save_prompt && !s_inv_open && !s_warp_pending &&
+		if ((down & controls_keys(ACT_PAUSE)) && !s_msg_page && !s_save_prompt && !s_inv_open && !s_warp_pending &&
 		    !screens_open()) {
 			pause_reopen(0);
 			sfx_play(SFX_MENU_OK, 1.0f, 0.0f);
@@ -5661,7 +5661,11 @@ int main(void)
 			s_flash_on = !s_flash_on;
 			sfx_play(s_flash_on ? SFX_LIGHT_ON : SFX_LIGHT_OFF, 0.8f, 0.0f);
 		}
+#ifdef SH2VITA
+		if (false) {                     // SELECT pauses on the Vita; the debug page is debug.txt's debughud
+#else
 		if (!viewer && (down & KEY_SELECT) && touchui_select()) {     // SELECT twice: the debug page
+#endif
 			s_debug_hud = !s_debug_hud;
 			for (int r = 1; r < 18; r++)
 				printf("\x1b[%d;1H%40s", r, "");

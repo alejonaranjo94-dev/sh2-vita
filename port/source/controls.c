@@ -6,8 +6,8 @@
 #include "touchui.h"
 
 #ifdef SH2VITA
-// The Vita has no ZL or ZR (vita/compat/src/hid.c)
-#define BINDABLE (KEY_A | KEY_B | KEY_X | KEY_Y | KEY_L | KEY_R | KEY_SELECT | KEY_DUP | \
+// ZL and ZR are the rear touch pad's upper corners on the Vita, named L2 and R2 (hid.c)
+#define BINDABLE (KEY_A | KEY_B | KEY_X | KEY_Y | KEY_L | KEY_R | KEY_ZL | KEY_ZR | KEY_DUP | \
                   KEY_DDOWN | KEY_DLEFT | KEY_DRIGHT | KEY_CSTICK_UP | KEY_CSTICK_DOWN | KEY_CSTICK_LEFT | \
                   KEY_CSTICK_RIGHT)
 #else
@@ -50,24 +50,27 @@ u32 controls_default(ControlsLayout layout, ControlsAction act)
 {
 #ifdef SH2VITA
 	// The Vita (port/CONTROLS.md, "PS Vita"; hid.c: Cross = A, Circle = B, Square = Y, Triangle =
-	// X): the PS2's way, Cross acts and Square runs, Triangle opens the map and Circle the items
-	// (Circle backs out of them again), R aims and L turns James round; the D-Pad keeps the 3DS's
-	// four actions under the left thumb and the right stick moves the lock while aiming.
+	// X, the rear pad's upper corners ZL and ZR) as close to the PS2's defaults as its buttons allow:
+	// Cross acts, Square runs, Circle the flashlight, Triangle the map, START the items and SELECT
+	// pauses. The PS2's R2 (aim) is R, its L2 (the view behind James) is L, and its L1 / R1 (the
+	// side steps, both together a quick turn) are the rear corners. The D-Pad's next weapon and
+	// quick heal are the port's own extras.
 	(void)layout;
 	switch (act) {
 	case ACT_ACTION: return KEY_A;
 	case ACT_RUN: return KEY_Y;
-	case ACT_ITEMS: return KEY_B;
+	case ACT_FLASHLIGHT: return KEY_B;
 	case ACT_MAP: return KEY_X;
+	case ACT_ITEMS: return KEY_START;
+	case ACT_PAUSE: return KEY_SELECT;
 	case ACT_AIM: return KEY_R;
-	case ACT_TURN180: return KEY_L;
-	case ACT_LOOK: return KEY_DUP;
+	case ACT_LOOK: return KEY_L;
+	case ACT_STRAFE_LEFT: return KEY_ZL;
+	case ACT_STRAFE_RIGHT: return KEY_ZR;
 	case ACT_WEAPON_NEXT: return KEY_DDOWN;
 	case ACT_HEAL: return KEY_DLEFT;
-	case ACT_FLASHLIGHT: return KEY_DRIGHT;
 	case ACT_TARGET_LEFT: return KEY_CSTICK_LEFT;
 	case ACT_TARGET_RIGHT: return KEY_CSTICK_RIGHT;
-	case ACT_PAUSE: return KEY_START;
 	case ACT_CANCEL: return KEY_B;
 	default: return 0;
 	}
@@ -199,7 +202,7 @@ static const char* key_names(u32 k, char* out, size_t n)
 	static const struct { u32 bit; const char* name; } K[] = {
 #ifdef SH2VITA
 		{ KEY_A, "Cross" }, { KEY_B, "Circle" }, { KEY_X, "Triangle" }, { KEY_Y, "Square" }, { KEY_L, "L" },
-		{ KEY_R, "R" }, { KEY_START, "START" }, { KEY_SELECT, "SELECT" },
+		{ KEY_R, "R" }, { KEY_ZL, "L2" }, { KEY_ZR, "R2" }, { KEY_START, "START" }, { KEY_SELECT, "SELECT" },
 		{ KEY_DUP, "Up" }, { KEY_DDOWN, "Down" }, { KEY_DLEFT, "Left" }, { KEY_DRIGHT, "Right" },
 		{ KEY_CSTICK_UP, "RS-Up" }, { KEY_CSTICK_DOWN, "RS-Down" }, { KEY_CSTICK_LEFT, "RS-Left" },
 		{ KEY_CSTICK_RIGHT, "RS-Right" },
