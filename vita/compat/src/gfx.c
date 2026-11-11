@@ -22,6 +22,7 @@
 #include "vita_compat.h"
 
 extern C3D_RenderTarget* g_c3d_top_output;
+extern C3D_RenderTarget* g_c3d_bottom_output;
 
 static bool s_gl_ready;
 static GLuint s_prog, s_fb_tex;
